@@ -31,4 +31,16 @@ export class TokenService {
   public verifyToken(token: string): TokenPayloadInterface {
     return this.jwtService.verify(token);
   }
+
+  public generateResetPasswordToken(email: string) {
+    return this.jwtService.sign(
+      { email },
+      {
+        expiresIn: this.configService.get('RESET_PASSWORD_TOKEN_LIFETIME'),
+      },
+    );
+  }
+  public verifyResetPasswordToken(token: string): { email: string } {
+    return this.jwtService.verify(token);
+  }
 }

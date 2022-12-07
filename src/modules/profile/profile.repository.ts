@@ -3,7 +3,7 @@ import { ProfileEntity } from '@app/modules/profile/profile.entity';
 import { UserEntity } from '@app/modules/user/user.entity';
 
 @EntityRepository()
-export class ProfileRepository extends Repository<ProfileRepository> {
+export class ProfileRepository extends Repository<ProfileEntity> {
   constructor(private readonly dataSource: DataSource) {
     super(ProfileEntity, dataSource.createEntityManager());
   }

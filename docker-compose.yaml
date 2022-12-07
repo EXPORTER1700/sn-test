@@ -3,6 +3,7 @@ version: '3.8'
 volumes:
   pgdata:
   redis-cache-data:
+  redis-session-data:
 
 services:
 #  main:
@@ -19,6 +20,7 @@ services:
 #      - '${APP_PORT}:${APP_PORT}'
 #    depends_on:
 #      - postgres
+#      - redis-session
 #      - redis-cache
 #    restart: always
   postgres:
@@ -33,10 +35,24 @@ services:
       - '${POSTGRES_PORT}:${POSTGRES_PORT}'
     volumes:
       - pgdata:/var/lib/postgresql/data
+  redis-session:
+    image: redis:6
+    container_name: redis-session
+    env_file:
+      - '.env.development'
+    ports:
+      - '${REDIS_SESSION_PORT}:${REDIS_SESSION_PORT}'
+    volumes:
+      - redis-session-data:/data
   redis-cache:
     image: redis:6
     container_name: redis-cache
+    env_file:
+      - '.env.development'
     ports:
-      - "6379:6379"
+      - '${REDIS_CACHE_PORT}:${REDIS_CACHE_PORT}'
+    expose:
+      - '${REDIS_CACHE_PORT}'
     volumes:
       - redis-cache-data:/data
+    command: '--port ${REDIS_CACHE_PORT}'

@@ -13,13 +13,13 @@ export class ProfileEntity extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ default: '' })
+  @Column({ nullable: true })
   firstName: string;
 
-  @Column({ default: '' })
+  @Column({ nullable: true })
   lastName: string;
 
-  @Column({ default: '' })
+  @Column({ nullable: true })
   photo: string;
 
   @OneToOne(() => UserEntity, (user) => user.profile)

@@ -8,9 +8,14 @@ import { UserModule } from '@app/modules/user/user.module';
 import { AuthModule } from '@app/modules/auth/auth.module';
 import { MailModule } from './modules/mail/mail.module';
 import { TokenModule } from './modules/token/token.module';
-import { RedisModule } from './modules/redis/redis.module';
+import { RedisSessionModule } from 'src/modules/redis-session/redis-session.module';
 import { JwtStrategy } from '@app/modules/auth/strategies/jwt.strategy';
 import { ProfileModule } from './modules/profile/profile.module';
+import { PostModule } from './modules/post/post.module';
+import { PostContentModule } from 'src/modules/post-content/postContent.module';
+import { FileModule } from '@app/modules/file/file.module';
+import { CommentModule } from 'src/modules/comment/comment.module';
+import { RedisCacheModule } from '@app/modules/redis-cache/redis-cache.module';
 
 @Module({
   imports: [
@@ -62,8 +67,13 @@ import { ProfileModule } from './modules/profile/profile.module';
     AuthModule,
     MailModule,
     TokenModule,
-    RedisModule,
+    RedisSessionModule,
+    RedisCacheModule,
     ProfileModule,
+    PostModule,
+    PostContentModule,
+    FileModule,
+    CommentModule,
   ],
   controllers: [],
   providers: [ConfigService, JwtService, JwtStrategy],

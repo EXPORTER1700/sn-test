@@ -12,21 +12,37 @@ export class MailService {
     private readonly tokenService: TokenService,
   ) {}
 
-  public async sandActivationList(user: UserEntity) {
+  public async sendActivationList(user: UserEntity) {
     const token = this.tokenService.generateActivationToken({
       id: user.id,
       username: user.username,
     });
 
-    const url = `http://${this.configService.get(
-      'APP_HOST',
-    )}:${this.configService.get('APP_PORT')}/api/auth/confirm/${token}`;
+    const host = this.configService.get('APP_HOST');
+    const port = this.configService.get('APP_PORT');
+
+    const url = `http://${host}:${port}/api/auth/confirm/${token}`;
 
     await this.mailerService.sendMail({
       to: user.email,
       html: `
         <h1>Follow this link to confirm your email</h1>
         <a href="${url}">Activate</a>
+      `,
+    });
+  }
+
+  public async sendResetPasswordList(email: string): Promise<void> {
+    const token = this.tokenService.generateResetPasswordToken(email);
+    const frontendUrl = this.configService.get('FRONTEND_URL');
+
+    const url = `${frontendUrl}/reset-password/${token}`;
+
+    await this.mailerService.sendMail({
+      to: email,
+      html: `
+        <h1>Follow this link to reset your password</h1>
+        <a href="${url}">Reset</a>
       `,
     });
   }

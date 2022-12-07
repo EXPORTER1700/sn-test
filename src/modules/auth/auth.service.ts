@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  forwardRef,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { TokenService } from '@app/modules/token/token.service';
 import { CreateUserDto } from '@app/modules/user/dto/createUser.dto';
 import { UserService } from '@app/modules/user/user.service';
@@ -8,23 +15,25 @@ import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { LoginUserDto } from '@app/modules/auth/dto/loginUser.dto';
 import * as bcrypt from 'bcrypt';
-import { RedisService } from '@app/modules/redis/redis.service';
+import { RedisSessionService } from '@app/modules/redis-session/redis-session.service';
 import { TokenPayloadInterface } from '@app/modules/token/types/tokenPayload.interface';
+import { ResetPasswordDto } from '@app/modules/auth/dto/resetPassword.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly tokenService: TokenService,
+    @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
-    private readonly redisService: RedisService,
+    private readonly redisService: RedisSessionService,
   ) {}
 
   public async registration(dto: CreateUserDto) {
     const user = await this.userService.createUser(dto);
 
-    await this.mailService.sandActivationList(user);
+    await this.mailService.sendActivationList(user);
 
     return;
   }
@@ -32,15 +41,22 @@ export class AuthService {
   public async confirmEmail(token: string, res: Response) {
     const payload = this.tokenService.verifyToken(token);
 
-    const user = await this.userService.findById(payload.id);
+    const user = await this.userService.findByIdWithRelations(payload.id);
+
+    if (!user) {
+      throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
+    }
+
     user.status = UserStatusEnum.ACTIVATED;
     await user.save();
 
-    return res.redirect(this.configService.get('FRONTEND_URL'));
+    return res.redirect(this.configService.get('FRONTEND_URL') as string);
   }
 
   public async login(dto: LoginUserDto, res: Response): Promise<void> {
-    const user = await this.userService.findByUsername(dto.username);
+    const user = await this.userService.findByUsernameWithRelations(
+      dto.username,
+    );
 
     if (!user) {
       throw new HttpException(
@@ -70,7 +86,31 @@ export class AuthService {
   }
 
   public async logout(userId: number) {
-    await this.redisService.del(String(userId));
+    await this.redisService.delete(userId);
+  }
+
+  public async sendResetPasswordList(email: string): Promise<void> {
+    const userByEmail = await this.userService.findByEmail(email);
+
+    if (!userByEmail) {
+      throw new UnprocessableEntityException(
+        'User with this email does not exist',
+      );
+    }
+
+    await this.mailService.sendResetPasswordList(email);
+  }
+
+  public async resetPassword(
+    dto: ResetPasswordDto,
+    token: string,
+    res: Response,
+  ) {
+    const tokenPayload = this.tokenService.verifyResetPasswordToken(token);
+
+    await this.userService.resetPassword(dto, tokenPayload.email);
+
+    return res.redirect(this.configService.get('FRONTEND_URL') + 'login');
   }
 
   public async refresh(refreshToken: string, res: Response): Promise<void> {
@@ -80,7 +120,7 @@ export class AuthService {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
 
-    const tokenFromCache = await this.redisService.get(String(tokenPayload.id));
+    const tokenFromCache = await this.redisService.get(tokenPayload.id);
 
     if (!tokenFromCache || tokenFromCache !== refreshToken) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
@@ -99,7 +139,7 @@ export class AuthService {
     const accessToken = this.tokenService.generateAccessToken(payload);
     const refreshToken = this.tokenService.generateRefreshToken(payload);
 
-    await this.redisService.set(String(payload.id), refreshToken);
+    await this.redisService.set(payload.id, refreshToken);
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
