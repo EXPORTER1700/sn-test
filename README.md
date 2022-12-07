@@ -4,7 +4,7 @@
 $ npm install
 ```
 
-##Run project
+## Run project
 ```bash
 #Run docker
 $ npm run up
