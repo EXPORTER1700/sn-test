@@ -7,7 +7,7 @@ import {
 
 @Injectable()
 export class ProfilePhotoValidationPipe implements PipeTransform {
-  transform(file: Express.Multer.File, metadata: ArgumentMetadata) {
+  public transform(file: Express.Multer.File, metadata: ArgumentMetadata) {
     if (!file) {
       return undefined;
     }

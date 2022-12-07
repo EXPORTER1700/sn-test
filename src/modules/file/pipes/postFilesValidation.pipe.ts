@@ -8,7 +8,7 @@ import {
 
 @Injectable()
 export class PostFilesValidationPipe implements PipeTransform {
-  transform(
+  public transform(
     files: { content: Express.Multer.File[] },
     metadata: ArgumentMetadata,
   ) {

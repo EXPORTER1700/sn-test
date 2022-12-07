@@ -20,7 +20,7 @@ import { SearchProfilesQueryInterface } from '@app/modules/profile/types/searchP
 import { ProfilePreviewDto } from '@app/modules/profile/dto/profilePreview.dto';
 import { UpdateProfileDto } from '@app/modules/profile/dto/updateProfile.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ProfilePhotoValidationPipe } from '@app/modules/profile/pipes/profilePhotoValidation.pipe';
+import { ProfilePhotoValidationPipe } from '@app/modules/file/pipes/profilePhotoValidation.pipe';
 
 @Controller('profile')
 @UseGuards(AuthGuard())

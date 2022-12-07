@@ -15,7 +15,7 @@ import { UserEntity } from '@app/modules/user/user.entity';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { CreatePostDto } from '@app/modules/post/dto/createPost.dto';
 import { PostService } from '@app/modules/post/post.service';
-import { PostFilesValidationPipe } from '@app/modules/post/pipes/postFilesValidation.pipe';
+import { PostFilesValidationPipe } from '@app/modules/file/pipes/postFilesValidation.pipe';
 import { AuthGuard } from '@nestjs/passport';
 import { PostResponseDto } from '@app/modules/post/dto/postResponse.dto';
 import { GetPostsQueryInterface } from '@app/modules/post/types/getPostsQuery.interface';
