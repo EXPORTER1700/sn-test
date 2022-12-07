@@ -1,9 +1,8 @@
 import {
   forwardRef,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { PostRepository } from '@app/modules/post/post.repository';
 import { CreatePostDto } from '@app/modules/post/dto/createPost.dto';
@@ -89,10 +88,7 @@ export class PostService {
     const post = await this.findByIdWithRequiredRelations(postId);
 
     if (!post) {
-      throw new HttpException(
-        'Post does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Post does not exist');
     }
 
     return await this.buildPostResponse(post, currentUser);
@@ -130,10 +126,7 @@ export class PostService {
     ]);
 
     if (!user) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     return !!user.liked.find((item) => item.id === post.id);
@@ -148,28 +141,19 @@ export class PostService {
     ]);
 
     if (!user) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     const post = await this.findByIdWithRequiredRelations(postId);
 
     if (!post) {
-      throw new HttpException(
-        'Post does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Post does not exist');
     }
 
     const isLiked = !!user.liked.find((item) => item.id === post.id);
 
     if (isLiked) {
-      throw new HttpException(
-        'Post is already liked',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Post is already liked');
     }
 
     user.liked.push(post);
@@ -191,28 +175,19 @@ export class PostService {
     ]);
 
     if (!user) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     const post = await this.findByIdWithRequiredRelations(postId);
 
     if (!post) {
-      throw new HttpException(
-        'Post does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Post does not exist');
     }
 
     const isLiked = !!user.liked.find((item) => item.id === post.id);
 
     if (!isLiked) {
-      throw new HttpException(
-        `Didn't like the post`,
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException(`Didn't like the post`);
     }
 
     user.liked = user.liked.filter((item) => item.id !== post.id);

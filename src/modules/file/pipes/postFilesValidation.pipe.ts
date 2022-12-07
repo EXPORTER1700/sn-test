@@ -2,8 +2,7 @@ import {
   PipeTransform,
   Injectable,
   ArgumentMetadata,
-  HttpException,
-  HttpStatus,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 @Injectable()
@@ -13,10 +12,7 @@ export class PostFilesValidationPipe implements PipeTransform {
     metadata: ArgumentMetadata,
   ) {
     if (!files.content) {
-      throw new HttpException(
-        'Image or video are required',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Image or video are required');
     }
 
     const isFilesValid = files.content.reduce((acc, file) => {
@@ -34,9 +30,8 @@ export class PostFilesValidationPipe implements PipeTransform {
     }, true);
 
     if (!isFilesValid) {
-      throw new HttpException(
-        'Pictures should be no more than two megabytes, and videos no more than 16 megabytes',
-        HttpStatus.UNPROCESSABLE_ENTITY,
+      throw new UnprocessableEntityException(
+        'Pictures should be no more than 2 megabytes, and videos no more than 16 megabytes',
       );
     }
 

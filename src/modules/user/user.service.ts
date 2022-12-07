@@ -1,7 +1,5 @@
 import {
   forwardRef,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
   UnprocessableEntityException,
@@ -134,10 +132,7 @@ export class UserService {
     const user = await this.findByIdWithRelations(userId, ['subscriptions']);
 
     if (!user) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     return user.subscriptions.map((user) => user.id);

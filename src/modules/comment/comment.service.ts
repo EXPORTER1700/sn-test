@@ -1,9 +1,8 @@
 import {
   forwardRef,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CommentRepository } from '@app/modules/comment/comment.repository';
 import { CreateCommentDto } from '@app/modules/comment/dto/createComment.dto';
@@ -31,10 +30,7 @@ export class CommentService {
     const post = await this.postService.findByIdWithRelations(dto.post);
 
     if (!post) {
-      throw new HttpException(
-        'Post does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Post does not exist');
     }
 
     let replyTo: CommentEntity | null = null;
@@ -43,16 +39,12 @@ export class CommentService {
       replyTo = await this.findByIdWithRelations(dto.replyTo, ['post']);
 
       if (!replyTo) {
-        throw new HttpException(
-          'Comment does not exist',
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
+        throw new UnprocessableEntityException('Comment does not exist');
       }
 
       if (replyTo.post.id !== post.id) {
-        throw new HttpException(
+        throw new UnprocessableEntityException(
           "You can't reply to a comment that is under another post",
-          HttpStatus.UNPROCESSABLE_ENTITY,
         );
       }
     }

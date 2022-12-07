@@ -1,9 +1,8 @@
 import {
   forwardRef,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ProfileRepository } from '@app/modules/profile/profile.repository';
 import { UserEntity } from '@app/modules/user/user.entity';
@@ -75,10 +74,7 @@ export class ProfileService {
     const user = await this.userService.findByUsernameWithRelations(username);
 
     if (!user) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     return await this.buildProfileResponse(user, currentUser);
@@ -107,10 +103,7 @@ export class ProfileService {
     );
 
     if (!subscriber) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     const currentUser = (await this.userService.findByIdWithRelations(
@@ -119,10 +112,7 @@ export class ProfileService {
     )) as UserEntity;
 
     if (!subscriber) {
-      throw new HttpException(
-        'Subscriber does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Subscriber does not exist');
     }
 
     const isSubscribed = !!currentUser.subscriptions.find(
@@ -130,10 +120,7 @@ export class ProfileService {
     );
 
     if (isSubscribed) {
-      throw new HttpException(
-        'User is already subscribed',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User is already subscribed');
     }
 
     currentUser.subscriptions.push(subscriber);
@@ -162,10 +149,7 @@ export class ProfileService {
     );
 
     if (!subscriber) {
-      throw new HttpException(
-        'Subscriber does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('Subscriber does not exist');
     }
 
     const isSubscribed = !!currentUser.subscriptions.find(
@@ -173,10 +157,7 @@ export class ProfileService {
     );
 
     if (!isSubscribed) {
-      throw new HttpException(
-        'User is not subscribed yet',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User is not subscribed yet');
     }
 
     currentUser.subscriptions = currentUser.subscriptions.filter(
@@ -269,10 +250,7 @@ export class ProfileService {
     );
 
     if (!currentUser) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     return !!currentUser.subscriptions.find(

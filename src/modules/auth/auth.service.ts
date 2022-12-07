@@ -1,9 +1,9 @@
 import {
+  ForbiddenException,
   forwardRef,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
+  UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { TokenService } from '@app/modules/token/token.service';
@@ -44,7 +44,7 @@ export class AuthService {
     const user = await this.userService.findByIdWithRelations(payload.id);
 
     if (!user) {
-      throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     user.status = UserStatusEnum.ACTIVATED;
@@ -59,27 +59,21 @@ export class AuthService {
     );
 
     if (!user) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     if (user.status === UserStatusEnum.BANNED) {
-      throw new HttpException('User is banned', HttpStatus.FORBIDDEN);
+      throw new ForbiddenException('User is banned');
     }
 
     if (user.status === UserStatusEnum.NOT_CONFIRMED) {
-      throw new HttpException('Email does not activate', HttpStatus.FORBIDDEN);
+      throw new ForbiddenException('Email does not activate');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
 
     if (!isPasswordValid) {
-      throw new HttpException(
-        'User does not exist',
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
+      throw new UnprocessableEntityException('User does not exist');
     }
 
     await this.sendTokens({ id: user.id, username: user.username }, res);
@@ -117,13 +111,13 @@ export class AuthService {
     const tokenPayload = await this.tokenService.verifyToken(refreshToken);
 
     if (!tokenPayload) {
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new UnauthorizedException('Unauthorized');
     }
 
     const tokenFromCache = await this.redisService.get(tokenPayload.id);
 
     if (!tokenFromCache || tokenFromCache !== refreshToken) {
-      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      throw new UnauthorizedException('Unauthorized');
     }
 
     await this.sendTokens(

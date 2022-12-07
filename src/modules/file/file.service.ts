@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { v4 } from 'uuid';
@@ -42,9 +42,8 @@ export class FileService {
         })
         .promise();
     } catch (e) {
-      throw new HttpException(
+      throw new InternalServerErrorException(
         'An error occurred while loading the file',
-        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -58,9 +57,8 @@ export class FileService {
         })
         .createReadStream();
     } catch (e) {
-      throw new HttpException(
+      throw new InternalServerErrorException(
         'An error occurred while downloading the file',
-        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
