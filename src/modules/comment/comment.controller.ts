@@ -1,38 +1,26 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import { CreateCommentDto } from '@app/modules/comment/dto/createComment.dto';
-import { GetUser } from '@app/modules/auth/decorators/getUser.decorator';
-import { UserEntity } from '@app/modules/user/user.entity';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { CreateCommentDto } from '@app/modules/comment/dto/create-comment.dto';
+import { GetCurrentUserId } from '@app/modules/auth/decorator/get-current-user-id.decorator';
 import { CommentService } from '@app/modules/comment/comment.service';
-import { AuthGuard } from '@nestjs/passport';
-import { GetCommentListQueryInterface } from '@app/modules/comment/types/GetCommentListQuery.interface';
+import { BaseQueryDto } from '@app/common/dto/base-query.dto';
 
 @Controller('comment')
-@UseGuards(AuthGuard())
 export class CommentController {
   constructor(private readonly commentService: CommentService) {}
 
   @Post()
   public createComment(
     @Body() dto: CreateCommentDto,
-    @GetUser() user: UserEntity,
+    @GetCurrentUserId() currentUserId: number,
   ) {
-    return this.commentService.createComment(dto, user);
+    return this.commentService.createComment(dto, currentUserId);
   }
 
   @Get(':postId')
-  public getCommentsList(
+  public getCommentListByPostId(
     @Param('postId') postId: number,
-    @Query() query: GetCommentListQueryInterface,
-    @GetUser() currentUser: UserEntity,
+    @Query() query: BaseQueryDto,
   ) {
-    return this.commentService.getCommentList(postId, currentUser, query);
+    return this.commentService.getCommentListByPostId(postId, query);
   }
 }

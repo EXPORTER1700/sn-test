@@ -5,247 +5,207 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PostRepository } from '@app/modules/post/post.repository';
-import { CreatePostDto } from '@app/modules/post/dto/createPost.dto';
-import { UserEntity } from '@app/modules/user/user.entity';
-import { PostEntity } from '@app/modules/post/post.entity';
-import { PostContentService } from '@app/modules/post-content/postContent.service';
 import { UserService } from '@app/modules/user/user.service';
-import { GetPostsQueryInterface } from '@app/modules/post/types/getPostsQuery.interface';
-import { PostResponseDto } from '@app/modules/post/dto/postResponse.dto';
-import { CommentService } from '@app/modules/comment/comment.service';
-import { PostPreviewDto } from '@app/modules/post/dto/postPreview.dto';
+import { CreatePostDto } from '@app/modules/post/dto/create-post.dto';
+import { PostEntity } from '@app/modules/post/post.entity';
+import { PostContentService } from '@app/modules/post-content/post-content.service';
+import { UserEntity } from '@app/modules/user/user.entity';
+import { ProfileEntity } from '@app/modules/profile/profile.entity';
+import { PostAuthorDto } from '@app/modules/post/dto/post-author.dto';
+import { PostContentEntity } from '@app/modules/post-content/post-content.entity';
 import { ProfileService } from '@app/modules/profile/profile.service';
+import { PostResponseDto } from '@app/modules/post/dto/post-response.dto';
+import { SuccessResponseDto } from '@app/common/dto/success-response.dto';
+import { LikeService } from '@app/modules/like/like.service';
+import { PostPreviewDto } from '@app/modules/post/dto/post-preview.dto';
+import { BaseQueryDto } from '@app/common/dto/base-query.dto';
+import { SubscriptionService } from '@app/modules/subscription/subscription.service';
+import { CommentService } from '@app/modules/comment/comment.service';
+import { defaultCommentCountConstant } from '@app/modules/post/types/default-comment-count.constant';
 
 @Injectable()
 export class PostService {
   constructor(
+    private readonly postRepository: PostRepository,
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
-    private readonly postRepository: PostRepository,
     private readonly postContentService: PostContentService,
+    private readonly profileService: ProfileService,
+    private readonly likeService: LikeService,
+    private readonly subscriptionService: SubscriptionService,
     @Inject(forwardRef(() => CommentService))
     private readonly commentService: CommentService,
-    @Inject(forwardRef(() => ProfileService))
-    private readonly profileService: ProfileService,
   ) {}
-
-  public async getPostPreviews(
-    username: string,
-    query: GetPostsQueryInterface,
-  ): Promise<PostPreviewDto[]> {
-    const queryBuilder = this.postRepository
-      .createQueryBuilder('posts')
-      .leftJoinAndSelect('posts.user', 'users')
-      .leftJoinAndSelect('posts.content', 'content')
-      .andWhere('users.username = :username', { username })
-      .limit(query.limit)
-      .offset(query.offset);
-
-    const posts = await queryBuilder.getMany();
-
-    return posts.map((post) => ({
-      id: post.id,
-      firstContent: post.content[0],
-      isMultipleContent: post.content.length > 1,
-    }));
-  }
-
-  public async getFeed(
-    currentUser: UserEntity,
-    query: GetPostsQueryInterface,
-  ): Promise<PostResponseDto[]> {
-    const subscriptionsIds = await this.userService.getSubscriptionsIds(
-      currentUser.id,
-    );
-
-    if (!subscriptionsIds.length) {
-      return [];
-    }
-
-    const queryBuilder = this.postRepository
-      .createQueryBuilder('posts')
-      .leftJoinAndSelect('posts.user', 'users')
-      .leftJoinAndSelect('users.profile', 'profiles')
-      .leftJoinAndSelect('posts.comments', 'comments')
-      .leftJoinAndSelect('posts.content', 'content')
-      .andWhere('users.id IN (:...ids)', { ids: subscriptionsIds })
-      .limit(query.limit)
-      .offset(query.offset);
-
-    const posts = await queryBuilder.getMany();
-
-    return await Promise.all(
-      posts.map(
-        async (post) => await this.buildPostResponse(post, currentUser),
-      ),
-    );
-  }
-
-  public async getOnePost(
-    postId: number,
-    currentUser: UserEntity,
-  ): Promise<PostResponseDto> {
-    const post = await this.findByIdWithRequiredRelations(postId);
-
-    if (!post) {
-      throw new UnprocessableEntityException('Post does not exist');
-    }
-
-    return await this.buildPostResponse(post, currentUser);
-  }
 
   public async createPost(
     dto: CreatePostDto,
     files: Express.Multer.File[],
-    currentUser: UserEntity,
+    currentUserId: number,
   ): Promise<PostResponseDto> {
-    const newPost = await this.postRepository.createPost(dto, currentUser);
-
-    await Promise.all(
+    const user = await this.userService.findByIdOrThrowError(currentUserId);
+    const post = await this.postRepository.createPost(dto, user);
+    const content = await Promise.all(
       files.map(
         async (file) =>
-          await this.postContentService.createPostContent(file, newPost),
+          await this.postContentService.createPostContent(file, post),
       ),
     );
+    user.postCount += 1;
+    await user.save();
 
-    await this.profileService.saveProfileToCache(currentUser);
-
-    const post = (await this.findByIdWithRequiredRelations(
-      newPost.id,
-    )) as PostEntity;
-
-    return await this.buildPostResponse(post, currentUser);
+    return await this.buildPostResponseDto(post, content, user);
   }
 
-  private async checkIsLiked(
-    post: PostEntity,
-    userId: number,
-  ): Promise<boolean> {
-    const user = await this.userService.findByIdWithRelations(userId, [
-      'liked',
-    ]);
-
-    if (!user) {
-      throw new UnprocessableEntityException('User does not exist');
-    }
-
-    return !!user.liked.find((item) => item.id === post.id);
-  }
-
-  public async likePost(
+  public async getOne(
     postId: number,
     currentUserId: number,
   ): Promise<PostResponseDto> {
-    const user = await this.userService.findByIdWithRelations(currentUserId, [
-      'liked',
-    ]);
+    const post = await this.findByIdOrThrowError(postId);
+    const currentUser = await this.userService.findByIdOrThrowError(
+      currentUserId,
+    );
+    const content = await this.postContentService.findAllByPostId(post.id);
 
-    if (!user) {
-      throw new UnprocessableEntityException('User does not exist');
-    }
+    return await this.buildPostResponseDto(post, content, currentUser);
+  }
 
-    const post = await this.findByIdWithRequiredRelations(postId);
-
-    if (!post) {
-      throw new UnprocessableEntityException('Post does not exist');
-    }
-
-    const isLiked = !!user.liked.find((item) => item.id === post.id);
+  public async likePost(
+    currentUserId: number,
+    postId: number,
+  ): Promise<SuccessResponseDto> {
+    const user = await this.userService.findByIdOrThrowError(currentUserId);
+    const post = await this.findByIdOrThrowError(postId);
+    const isLiked = await this.likeService.checkLike(user.id, post.id);
 
     if (isLiked) {
       throw new UnprocessableEntityException('Post is already liked');
     }
 
-    user.liked.push(post);
-
+    await this.likeService.createLike(user, post);
     post.likeCount += 1;
-
-    await user.save();
     await post.save();
 
-    return await this.buildPostResponse(post, user);
+    return new SuccessResponseDto();
   }
 
   public async unlikePost(
-    postId: number,
     currentUserId: number,
-  ): Promise<PostResponseDto> {
-    const user = await this.userService.findByIdWithRelations(currentUserId, [
-      'liked',
-    ]);
+    postId: number,
+  ): Promise<SuccessResponseDto> {
+    const user = await this.userService.findByIdOrThrowError(currentUserId);
+    const post = await this.findByIdOrThrowError(postId);
+    const isLiked = await this.likeService.checkLike(user.id, post.id);
 
-    if (!user) {
-      throw new UnprocessableEntityException('User does not exist');
+    if (!isLiked) {
+      throw new UnprocessableEntityException('Post does not liked');
     }
 
-    const post = await this.findByIdWithRequiredRelations(postId);
+    await this.likeService.deleteLike(user.id, post.id);
+    post.likeCount -= 1;
+    await post.save();
+
+    return new SuccessResponseDto();
+  }
+
+  public async getPostPreviewsByUsername(
+    username: string,
+    query: BaseQueryDto,
+  ): Promise<PostPreviewDto[]> {
+    const user = await this.userService.findByUsernameOrThrowError(username);
+    const posts = await this.postRepository.getPostListByUserId(user.id, query);
+
+    return await Promise.all(
+      posts.map(async (post) => await this.buildPostPreviewDto(post)),
+    );
+  }
+
+  public async getFeed(
+    currentUserId: number,
+    query: BaseQueryDto,
+  ): Promise<PostResponseDto[]> {
+    const currentUser = await this.userService.findByIdOrThrowError(
+      currentUserId,
+    );
+
+    const subscriptionsIds =
+      await this.subscriptionService.getSubscriptionsIdsByUserId(currentUserId);
+
+    if (!subscriptionsIds.length) {
+      return [];
+    }
+
+    const posts = await this.postRepository.getFeed(subscriptionsIds, query);
+
+    return await Promise.all(
+      posts.map(async (post) => {
+        const content = await this.postContentService.findAllByPostId(post.id);
+
+        return await this.buildPostResponseDto(post, content, currentUser);
+      }),
+    );
+  }
+
+  public async findById(postId: number): Promise<PostEntity | null> {
+    return this.postRepository.findById(postId);
+  }
+
+  public async findByIdOrThrowError(postId: number): Promise<PostEntity> {
+    const post = await this.findById(postId);
 
     if (!post) {
       throw new UnprocessableEntityException('Post does not exist');
     }
 
-    const isLiked = !!user.liked.find((item) => item.id === post.id);
-
-    if (!isLiked) {
-      throw new UnprocessableEntityException(`Didn't like the post`);
-    }
-
-    user.liked = user.liked.filter((item) => item.id !== post.id);
-    post.likeCount -= 1;
-
-    await user.save();
-    await post.save();
-
-    return this.buildPostResponse(post, user);
+    return post;
   }
 
-  private async buildPostResponse(
+  private async buildPostResponseDto(
     post: PostEntity,
-    currentUser: UserEntity,
+    content: PostContentEntity[],
+    user: UserEntity,
   ): Promise<PostResponseDto> {
-    const lastLiker = await this.userService.getLastLiker(post.id);
-    const isLiked = await this.checkIsLiked(post, currentUser.id);
-    const comments = await this.commentService.getCommentList(
+    const profile = await this.profileService.findByUserId(user.id);
+
+    if (!profile) {
+      throw new UnprocessableEntityException('Profile does not exist');
+    }
+
+    const author = this.buildPostAuthorDto(user, profile);
+    const isLiked = await this.likeService.checkLike(user.id, post.id);
+    const comments = await this.commentService.getCommentListByPostId(post.id, {
+      limit: defaultCommentCountConstant,
+      offset: 0,
+    });
+
+    return { post, content, author, isLiked, comments };
+  }
+
+  private buildPostAuthorDto(
+    user: UserEntity,
+    profile: ProfileEntity,
+  ): PostAuthorDto {
+    return { username: user.username, photo: profile.photo };
+  }
+
+  private async buildPostPreviewDto(post: PostEntity): Promise<PostPreviewDto> {
+    const firstContent = await this.postContentService.findFirstByPostId(
       post.id,
-      currentUser,
-      {
-        limit: 3,
-        offset: 0,
-      },
     );
+
+    const isMultipleContent = await this.checkMultipleContent(post.id);
 
     return {
       id: post.id,
-      author: {
-        username: post.user.username,
-        photo: post.user.profile.photo,
-      },
-      isAuthor: post.user.id === currentUser.id,
-      title: post.title,
-      content: post.content,
-      isLiked,
-      likeCount: post.likeCount,
-      lastLiker: lastLiker?.username || null,
-      commentCount: post.comments.length,
-      comments,
+      firstContent,
+      isMultipleContent,
     };
   }
 
-  public async findByIdWithRelations(
-    id: number,
-    relations?: string[],
-  ): Promise<PostEntity | null> {
-    return await this.postRepository.findOne({ where: { id }, relations });
-  }
+  private async checkMultipleContent(postId: number): Promise<boolean> {
+    const postContentCount = await this.postContentService.getCountByPostId(
+      postId,
+    );
 
-  public async findByIdWithRequiredRelations(
-    postId: number,
-  ): Promise<PostEntity | null> {
-    return await this.findByIdWithRelations(postId, [
-      'user',
-      'user.profile',
-      'content',
-      'comments',
-    ]);
+    return postContentCount > 1;
   }
 }

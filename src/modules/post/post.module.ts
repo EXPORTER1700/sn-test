@@ -1,24 +1,28 @@
 import { forwardRef, Module } from '@nestjs/common';
-import { PostService } from 'src/modules/post/post.service';
 import { PostController } from 'src/modules/post/post.controller';
+import { PostService } from 'src/modules/post/post.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostEntity } from '@app/modules/post/post.entity';
-import { PostRepository } from '@app/modules/post/post.repository';
-import { PostContentModule } from '@app/modules/post-content/postContent.module';
 import { UserModule } from '@app/modules/user/user.module';
-import { CommentModule } from '@app/modules/comment/comment.module';
+import { PostRepository } from '@app/modules/post/post.repository';
+import { PostContentModule } from '@app/modules/post-content/post-content.module';
 import { ProfileModule } from '@app/modules/profile/profile.module';
+import { LikeModule } from '@app/modules/like/like.module';
+import { SubscriptionModule } from '@app/modules/subscription/subscription.module';
+import { CommentModule } from '@app/modules/comment/comment.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([PostEntity]),
-    PostContentModule,
     forwardRef(() => UserModule),
+    PostContentModule,
+    ProfileModule,
+    LikeModule,
+    SubscriptionModule,
     forwardRef(() => CommentModule),
-    forwardRef(() => ProfileModule),
   ],
-  providers: [PostService, PostRepository],
   controllers: [PostController],
+  providers: [PostService, PostRepository],
   exports: [PostService],
 })
 export class PostModule {}

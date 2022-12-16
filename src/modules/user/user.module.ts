@@ -6,14 +6,14 @@ import { UserEntity } from '@app/modules/user/user.entity';
 import { UserRepository } from '@app/modules/user/user.repository';
 import { ProfileModule } from '@app/modules/profile/profile.module';
 import { PostModule } from '@app/modules/post/post.module';
-import { AuthModule } from '@app/modules/auth/auth.module';
+import { SubscriptionModule } from '@app/modules/subscription/subscription.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserEntity]),
-    forwardRef(() => ProfileModule),
+    ProfileModule,
     forwardRef(() => PostModule),
-    forwardRef(() => AuthModule),
+    SubscriptionModule,
   ],
   controllers: [UserController],
   providers: [UserService, UserRepository],

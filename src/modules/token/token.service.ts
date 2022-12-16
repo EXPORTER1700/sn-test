@@ -1,46 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { TokenPayloadInterface } from '@app/modules/token/types/tokenPayload.interface';
+import { TokenPayloadInterface } from '@app/modules/token/types/token-payload.interface';
+import { JwtConfigService } from '@app/modules/custom-config/services/jwt-config.service';
 
 @Injectable()
 export class TokenService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly configService: JwtConfigService,
   ) {}
-
-  public generateAccessToken(payload: TokenPayloadInterface): string {
-    return this.jwtService.sign(payload, {
-      expiresIn: this.configService.get('ACCESS_TOKEN_LIFETIME'),
-    });
-  }
-
-  public generateRefreshToken(payload: TokenPayloadInterface): string {
-    return this.jwtService.sign(payload, {
-      expiresIn: this.configService.get('REFRESH_TOKEN_LIFETIME'),
-    });
-  }
 
   public generateActivationToken(payload: TokenPayloadInterface): string {
     return this.jwtService.sign(payload, {
-      expiresIn: this.configService.get('ACTIVATION_TOKEN_LIFETIME'),
+      expiresIn: this.configService.getActivationTokenLifetime(),
     });
   }
 
-  public verifyToken(token: string): TokenPayloadInterface {
-    return this.jwtService.verify(token);
+  public verifyActivationToken(token: string): TokenPayloadInterface | never {
+    try {
+      return this.jwtService.verify(token);
+    } catch (e) {
+      throw new UnauthorizedException('Token is not valid');
+    }
   }
 
   public generateResetPasswordToken(email: string) {
     return this.jwtService.sign(
       { email },
       {
-        expiresIn: this.configService.get('RESET_PASSWORD_TOKEN_LIFETIME'),
+        expiresIn: this.configService.getResetPasswordTokenLifetime(),
       },
     );
   }
   public verifyResetPasswordToken(token: string): { email: string } {
-    return this.jwtService.verify(token);
+    try {
+      return this.jwtService.verify(token);
+    } catch (e) {
+      throw new UnauthorizedException('Token is not valid');
+    }
   }
 }

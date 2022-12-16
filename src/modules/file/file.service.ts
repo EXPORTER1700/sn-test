@@ -1,25 +1,19 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { v4 } from 'uuid';
 import { Express } from 'express';
 import { ManagedUpload } from 'aws-sdk/clients/s3';
-import { UploadFileContentTypeEnum } from '@app/modules/file/types/uploadFileContentType.enum';
 import { join } from 'path';
 import { Readable } from 'stream';
+import { UploadFileContentTypeEnum } from '@app/modules/file/types/upload-file-content-type.enum';
+import { S3ConfigService } from '@app/modules/custom-config/services/s3-config.service';
 
 @Injectable()
 export class FileService {
   private s3: S3;
 
-  constructor(private readonly configService: ConfigService) {
-    this.s3 = new S3({
-      credentials: {
-        accessKeyId: configService.get('AWS_S3_ACCESS_KEY') as string,
-        secretAccessKey: configService.get('AWS_S3_KEY_SECRET') as string,
-      },
-      region: configService.get('AWS_S3_REGION'),
-    });
+  constructor(private readonly configService: S3ConfigService) {
+    this.s3 = new S3(configService.getS3ClientConfig());
   }
 
   async uploadFile(
@@ -32,7 +26,7 @@ export class FileService {
     try {
       return await this.s3
         .upload({
-          Bucket: this.configService.get('AWS_S3_BUCKET') as string,
+          Bucket: this.configService.getS3Bucket(),
           Body: buffer,
           Key: join(
             fileType,
@@ -52,7 +46,7 @@ export class FileService {
     try {
       return this.s3
         .getObject({
-          Bucket: this.configService.get('AWS_S3_BUCKET')!,
+          Bucket: this.configService.getS3Bucket(),
           Key: key,
         })
         .createReadStream();
@@ -65,7 +59,7 @@ export class FileService {
 
   public async deleteFile(key: string): Promise<void> {
     await this.s3.deleteObject({
-      Bucket: this.configService.get('AWS_S3_BUCKET')!,
+      Bucket: this.configService.getS3Bucket(),
       Key: key,
     });
   }

@@ -8,9 +8,13 @@ export class ProfileRepository extends Repository<ProfileEntity> {
     super(ProfileEntity, dataSource.createEntityManager());
   }
 
-  public async createProfile(user: UserEntity): Promise<ProfileEntity> {
+  public async createProfile(user: UserEntity) {
     const profile = new ProfileEntity();
     profile.user = user;
     return await profile.save();
+  }
+
+  public async findByUserId(userId: number): Promise<ProfileEntity | null> {
+    return await super.findOne({ where: { user: { id: userId } } });
   }
 }

@@ -5,109 +5,104 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CommentRepository } from '@app/modules/comment/comment.repository';
-import { CreateCommentDto } from '@app/modules/comment/dto/createComment.dto';
-import { UserEntity } from '@app/modules/user/user.entity';
-import { PostService } from '@app/modules/post/post.service';
+import { CreateCommentDto } from '@app/modules/comment/dto/create-comment.dto';
 import { CommentEntity } from '@app/modules/comment/comment.entity';
-import { CommentResponseDto } from '@app/modules/comment/dto/commentResponse.dto';
-import { GetCommentListQueryInterface } from '@app/modules/comment/types/GetCommentListQuery.interface';
 import { UserService } from '@app/modules/user/user.service';
+import { PostService } from '@app/modules/post/post.service';
+import { ProfileService } from '@app/modules/profile/profile.service';
+import { UserEntity } from '@app/modules/user/user.entity';
+import { ProfileEntity } from '@app/modules/profile/profile.entity';
+import { CommentAuthorDto } from '@app/modules/comment/dto/comment-author.dto';
+import { BaseQueryDto } from '@app/common/dto/base-query.dto';
+import { CommentResponseDto } from '@app/modules/comment/dto/comment-response.dto';
 
 @Injectable()
 export class CommentService {
   constructor(
     private readonly commentRepository: CommentRepository,
-    @Inject(forwardRef(() => PostService))
-    private readonly postService: PostService,
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
+    @Inject(forwardRef(() => PostService))
+    private readonly postService: PostService,
+    private readonly profileService: ProfileService,
   ) {}
 
   public async createComment(
     dto: CreateCommentDto,
-    user: UserEntity,
-  ): Promise<CommentResponseDto> {
-    const post = await this.postService.findByIdWithRelations(dto.post);
-
-    if (!post) {
-      throw new UnprocessableEntityException('Post does not exist');
-    }
-
-    let replyTo: CommentEntity | null = null;
-
-    if (dto.replyTo) {
-      replyTo = await this.findByIdWithRelations(dto.replyTo, ['post']);
-
-      if (!replyTo) {
-        throw new UnprocessableEntityException('Comment does not exist');
-      }
-
-      if (replyTo.post.id !== post.id) {
-        throw new UnprocessableEntityException(
-          "You can't reply to a comment that is under another post",
-        );
-      }
-    }
-
+    userId: number,
+  ): Promise<any> {
+    const user = await this.userService.findByIdOrThrowError(userId);
+    const post = await this.postService.findByIdOrThrowError(dto.post);
+    const replyTo = dto.replyTo
+      ? await this.findByIdOrThrowError(dto.replyTo)
+      : null;
     const comment = await this.commentRepository.createComment(
-      dto.text,
-      user,
+      { text: dto.text },
       post,
+      user,
       replyTo,
     );
 
-    return await this.buildCommentResponse(comment, user);
+    post.commentCount += 1;
+    await post.save();
+
+    return await this.buildCommentResponseDto(comment, user);
   }
 
-  public async getCommentList(
-    postId,
-    currentUser: UserEntity,
-    query: GetCommentListQueryInterface,
+  public async getCommentListByPostId(
+    postId: number,
+    query: BaseQueryDto,
   ): Promise<CommentResponseDto[]> {
-    const queryBuilder = this.commentRepository
-      .createQueryBuilder('comments')
-      .leftJoinAndSelect('comments.post', 'posts')
-      .leftJoinAndSelect('comments.user', 'users')
-      .leftJoinAndSelect('users.profile', 'profiles')
-      .leftJoinAndSelect('comments.replyTo', 'replies')
-      .andWhere('posts.id = :id', { id: postId })
-      .orderBy('comments.createdAt', 'ASC')
-      .limit(query.limit)
-      .offset(query.offset);
-
-    const comments = await queryBuilder.getMany();
+    const comments = await this.commentRepository.getCommentListByPostId(
+      postId,
+      query,
+    );
 
     return await Promise.all(
       comments.map(
         async (comment) =>
-          await this.buildCommentResponse(comment, currentUser),
+          await this.buildCommentResponseDto(comment, comment.user),
       ),
     );
   }
 
-  private async buildCommentResponse(
-    comment: CommentEntity,
-    currentUser: UserEntity,
+  public async findById(commentId: number): Promise<CommentEntity | null> {
+    return await this.commentRepository.findById(commentId);
+  }
+
+  public async findByIdOrThrowError(commentId: number): Promise<CommentEntity> {
+    const comment = await this.findById(commentId);
+
+    if (!comment) {
+      throw new UnprocessableEntityException('Comment does not exist');
+    }
+
+    return comment;
+  }
+
+  private async buildCommentResponseDto(
+    comment: CommentEntity, //With replyTo relation
+    user: UserEntity,
   ): Promise<CommentResponseDto> {
+    const profile = await this.profileService.findByUserIdOrThrowError(user.id);
+    const author = this.buildCommentAuthorDto(user, profile);
+
     return {
       id: comment.id,
       text: comment.text,
-      replyTo: comment.replyTo?.id || null,
-      author: {
-        username: comment.user.username,
-        photo: comment.user.profile.photo,
-      },
-      isOwner: comment.user.id === currentUser.id,
+      replyTo: comment.replyTo ? comment.replyTo.id : null,
+      author,
     };
   }
 
-  public async findByIdWithRelations(
-    commentId: number,
-    relations?: string[],
-  ): Promise<CommentEntity | null> {
-    return await this.commentRepository.findOne({
-      where: { id: commentId },
-      relations,
-    });
+  private buildCommentAuthorDto(
+    //TODO make a common method for posts and comments?
+    user: UserEntity,
+    profile: ProfileEntity,
+  ): CommentAuthorDto {
+    return {
+      username: user.username,
+      photo: profile.photo,
+    };
   }
 }

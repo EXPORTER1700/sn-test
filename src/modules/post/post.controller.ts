@@ -7,72 +7,69 @@ import {
   Post,
   Query,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { GetUser } from '@app/modules/auth/decorators/getUser.decorator';
-import { UserEntity } from '@app/modules/user/user.entity';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { CreatePostDto } from '@app/modules/post/dto/createPost.dto';
 import { PostService } from '@app/modules/post/post.service';
-import { PostFilesValidationPipe } from '@app/modules/file/pipes/postFilesValidation.pipe';
-import { AuthGuard } from '@nestjs/passport';
-import { PostResponseDto } from '@app/modules/post/dto/postResponse.dto';
-import { GetPostsQueryInterface } from '@app/modules/post/types/getPostsQuery.interface';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { PostFilesValidationPipe } from '@app/modules/file/pipes/post-files-validation.pipe';
+import { CreatePostDto } from '@app/modules/post/dto/create-post.dto';
+import { GetCurrentUserId } from '@app/modules/auth/decorator/get-current-user-id.decorator';
+import { PostResponseDto } from '@app/modules/post/dto/post-response.dto';
+import { SuccessResponseDto } from '@app/common/dto/success-response.dto';
+import { BaseQueryDto } from '@app/common/dto/base-query.dto';
 
 @Controller('post')
-@UseGuards(AuthGuard())
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
   @Post()
   @UseInterceptors(FileFieldsInterceptor([{ name: 'content', maxCount: 10 }]))
   public createPost(
-    @GetUser() user: UserEntity,
     @UploadedFiles(PostFilesValidationPipe)
     files: { content: Express.Multer.File[] },
+    @GetCurrentUserId() currentUserId: number,
     @Body() dto: CreatePostDto,
   ): Promise<PostResponseDto> {
-    return this.postService.createPost(dto, files.content, user);
+    return this.postService.createPost(dto, files.content, currentUserId);
   }
 
-  @Post('like/:id')
-  public likePost(
-    @Param('id') postId: number,
-    @GetUser() user: UserEntity,
-  ): Promise<PostResponseDto> {
-    return this.postService.likePost(postId, user.id);
-  }
-
-  @Delete('like/:id')
-  public unlikePost(
-    @Param('id') postId: number,
-    @GetUser() user: UserEntity,
-  ): Promise<PostResponseDto> {
-    return this.postService.unlikePost(postId, user.id);
+  @Get('previews/:username')
+  public getPreviewsByUsername(
+    @Param('username') username: string,
+    @Query() query: BaseQueryDto,
+  ) {
+    return this.postService.getPostPreviewsByUsername(username, query);
   }
 
   @Get('feed')
   public getFeed(
-    @GetUser() currentUser: UserEntity,
-    @Query() query: GetPostsQueryInterface,
+    @GetCurrentUserId() currentUserId: number,
+    @Query() query: BaseQueryDto,
   ) {
-    return this.postService.getFeed(currentUser, query);
+    return this.postService.getFeed(currentUserId, query);
   }
 
   @Get(':id')
-  public getOnePost(
+  public getOne(
     @Param('id') postId: number,
-    @GetUser() currentUser: UserEntity,
+    @GetCurrentUserId() currentUserId: number,
   ) {
-    return this.postService.getOnePost(postId, currentUser);
+    return this.postService.getOne(postId, currentUserId);
   }
 
-  @Get('preview/:username')
-  public getPostsPreviews(
-    @Param('username') username: string,
-    @Query() query: GetPostsQueryInterface,
-  ) {
-    return this.postService.getPostPreviews(username, query);
+  @Post('like/:id')
+  public likePost(
+    @GetCurrentUserId() currentUserId: number,
+    @Param('id') postId: number,
+  ): Promise<SuccessResponseDto> {
+    return this.postService.likePost(currentUserId, postId);
+  }
+
+  @Delete('like/:id')
+  public unlikePost(
+    @GetCurrentUserId() currentUserId: number,
+    @Param('id') postId: number,
+  ): Promise<SuccessResponseDto> {
+    return this.postService.unlikePost(currentUserId, postId);
   }
 }

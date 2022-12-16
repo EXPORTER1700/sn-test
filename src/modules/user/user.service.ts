@@ -4,168 +4,231 @@ import {
   Injectable,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
-import { Response } from 'express';
 import { UserRepository } from '@app/modules/user/user.repository';
-import { CreateUserDto } from '@app/modules/user/dto/createUser.dto';
+import { CreateUserDto } from '@app/modules/user/dto/create-user.dto';
 import { UserEntity } from '@app/modules/user/user.entity';
+import { hash } from 'bcrypt';
 import { ProfileService } from '@app/modules/profile/profile.service';
+import { UserStatusEnum } from '@app/modules/user/types/user-status.enum';
 import { PostService } from '@app/modules/post/post.service';
-import { UpdateUserDto } from '@app/modules/user/dto/updateUser.dto';
-import { ProfileResponseDto } from '@app/modules/profile/dto/profileResponse.dto';
-import { UpdatePasswordDto } from '@app/modules/user/dto/updatePassword.dto';
-import { ConfigService } from '@nestjs/config';
-import { AuthService } from '@app/modules/auth/auth.service';
-import { ResetPasswordDto } from '@app/modules/auth/dto/resetPassword.dto';
+import { defaultPostPreviewCountConstant } from '@app/modules/user/types/default-post-preview-count.constant';
+import { UserResponseDto } from '@app/modules/user/dto/user-response.dto';
+import { SuccessResponseDto } from '@app/common/dto/success-response.dto';
+import { SubscriptionService } from '@app/modules/subscription/subscription.service';
+import { UserPreviewDto } from '@app/modules/user/dto/user-preview.dto';
+import { BaseQueryDto } from '@app/common/dto/base-query.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
-    @Inject(forwardRef(() => ProfileService))
     private readonly profileService: ProfileService,
     @Inject(forwardRef(() => PostService))
     private readonly postService: PostService,
-    private readonly configService: ConfigService,
-    @Inject(forwardRef(() => AuthService))
-    private readonly authService: AuthService,
+    private readonly subscriptionService: SubscriptionService,
   ) {}
 
   public async createUser(dto: CreateUserDto): Promise<UserEntity> {
-    const userByEmail = await this.findByEmail(dto.email);
+    const existUser = await this.userRepository.findByEmailOrUsername(
+      dto.email,
+      dto.username,
+    );
 
-    if (userByEmail) {
-      throw new UnprocessableEntityException(
-        'Username or email is already taken',
-      );
+    if (existUser) {
+      throw new UnprocessableEntityException('User is already exist');
     }
 
-    const userByUsername = await this.findByUsernameWithRelations(dto.username);
+    const hashPassword = await this.hashPassword(dto.password);
 
-    if (userByUsername) {
-      throw new UnprocessableEntityException(
-        'Username or email is already taken',
-      );
-    }
-
-    dto.password = await this.hashPassword(dto.password);
-
-    const user = await this.userRepository.createUser(dto);
+    const user = await this.userRepository.createUser({
+      ...dto,
+      password: hashPassword,
+    });
 
     await this.profileService.createProfile(user);
 
     return user;
   }
 
-  public async updateUser(
-    dto: UpdateUserDto,
-    currentUser: UserEntity,
-  ): Promise<ProfileResponseDto> {
-    const userByEmail = await this.findByEmail(dto.email);
+  public async getOneUserByUsername(username: string, currentUserId: number) {
+    const user = await this.findByUsernameOrThrowError(username);
 
-    if (userByEmail && userByEmail.id !== currentUser.id) {
-      throw new UnprocessableEntityException(
-        'Username or email is already taken',
-      );
-    }
+    const currentUser = await this.findByIdOrThrowError(currentUserId);
 
-    const userByUsername = await this.findByUsernameWithRelations(dto.username);
-
-    if (userByUsername && userByUsername.id !== currentUser.id) {
-      throw new UnprocessableEntityException(
-        'Username or email is already taken',
-      );
-    }
-
-    const updatedUser = Object.assign(currentUser, dto);
-
-    await updatedUser.save();
-
-    return await this.profileService.buildProfileResponse(
-      updatedUser,
-      updatedUser,
-    );
+    return await this.buildUserResponseDto(user, currentUser);
   }
 
-  public async updatePassword(
-    dto: UpdatePasswordDto,
-    currentUser,
-    res: Response,
-  ): Promise<void> {
-    const isOldPasswordCompare = await bcrypt.compare(
-      dto.oldPassword,
-      currentUser.password,
-    );
+  public async getCurrentUser(currentUserId: number) {
+    const currentUser = await this.findByIdOrThrowError(currentUserId);
 
-    if (!isOldPasswordCompare) {
-      throw new UnprocessableEntityException('Old password is not valid');
-    }
-
-    currentUser.password = await this.hashPassword(dto.newPassword);
-    await currentUser.save();
-
-    await this.authService.logout(currentUser.id);
-
-    return res.redirect(this.configService.get('FRONTEND_URL') as string);
+    return await this.buildUserResponseDto(currentUser);
   }
 
-  public async resetPassword(
-    dto: ResetPasswordDto,
-    email: string,
-  ): Promise<UserEntity> {
-    const user = await this.findByEmail(email);
+  public async activateUser(id: number): Promise<UserEntity> {
+    const user = await this.findByIdOrThrowError(id);
 
-    if (!user) {
-      throw new UnprocessableEntityException('Not valid email');
-    }
-
-    user.password = await this.hashPassword(dto.password);
-
+    user.status = UserStatusEnum.ACTIVATED;
     return await user.save();
   }
 
-  private async hashPassword(password): Promise<string> {
-    return await bcrypt.hash(password, 10);
+  public async subscribeToUser(
+    username: string,
+    currentUserId: number,
+  ): Promise<SuccessResponseDto> {
+    const user = await this.findByUsernameOrThrowError(username);
+    const currentUser = await this.findByIdOrThrowError(currentUserId);
+    await this.subscriptionService.createSubscription(user, currentUser);
+
+    user.subscriberCount += 1;
+    await user.save();
+
+    currentUser.subscriptionCount += 1;
+    await currentUser.save();
+
+    return new SuccessResponseDto();
   }
 
-  public async getSubscriptionsIds(userId: number): Promise<number[]> {
-    const user = await this.findByIdWithRelations(userId, ['subscriptions']);
+  public async unsubscribeFromUser(
+    username: string,
+    currentUserId: number,
+  ): Promise<SuccessResponseDto> {
+    const user = await this.findByUsernameOrThrowError(username); //TODO Create index to username
+    const currentUser = await this.findByIdOrThrowError(currentUserId);
+    await this.subscriptionService.deleteSubscription(user.id, currentUser.id);
+
+    user.subscriberCount -= 1;
+    await user.save();
+
+    currentUser.subscriptionCount -= 1;
+    await currentUser.save();
+
+    return new SuccessResponseDto();
+  }
+
+  public async getSubscribersByUsername(
+    username: string,
+    currentUserId: number,
+    query: BaseQueryDto,
+  ): Promise<UserPreviewDto[]> {
+    const user = await this.findByUsernameOrThrowError(username);
+    const subscribersIds =
+      await this.subscriptionService.getSubscribersIdsByUserId(user.id, query);
+
+    if (!subscribersIds.length) return [];
+
+    const subscribers = await this.userRepository.getUsersByIds(subscribersIds);
+
+    return await Promise.all(
+      subscribers.map(
+        async (user) => await this.buildUserPreviewDto(user, currentUserId),
+      ),
+    );
+  }
+
+  public async getSubscriptionsByUsername(
+    username: string,
+    currentUserId: number,
+    query: BaseQueryDto,
+  ): Promise<UserPreviewDto[]> {
+    const user = await this.findByUsernameOrThrowError(username);
+    const subscriptionsIds =
+      await this.subscriptionService.getSubscriptionsIdsByUserId(
+        user.id,
+        query,
+      );
+
+    if (!subscriptionsIds.length) return [];
+
+    const subscriptions = await this.userRepository.getUsersByIds(
+      subscriptionsIds,
+    );
+
+    return await Promise.all(
+      subscriptions.map(
+        async (user) => await this.buildUserPreviewDto(user, currentUserId),
+      ),
+    );
+  }
+
+  public async findByUsername(username: string): Promise<UserEntity | null> {
+    return await this.userRepository.findByUsername(username);
+  }
+
+  public async findById(id: number): Promise<UserEntity | null> {
+    return await this.userRepository.findById(id);
+  }
+
+  public async findByIdOrThrowError(userId: number): Promise<UserEntity> {
+    const user = await this.findById(userId);
 
     if (!user) {
       throw new UnprocessableEntityException('User does not exist');
     }
 
-    return user.subscriptions.map((user) => user.id);
+    return user;
   }
 
-  public async getLastLiker(postId: number): Promise<UserEntity | null> {
-    const queryBuilder = this.userRepository
-      .createQueryBuilder('users')
-      .leftJoinAndSelect('users.liked', 'liked')
-      .andWhere('liked.id = :id', { id: postId })
-      .limit(1);
-
-    return await queryBuilder.getOne();
-  }
-
-  public async findByIdWithRelations(
-    id: number,
-    relations?: string[],
-  ): Promise<UserEntity | null> {
-    return await this.userRepository.findOne({ where: { id }, relations });
-  }
-
-  public async findByUsernameWithRelations(
+  public async findByUsernameOrThrowError(
     username: string,
-    relations?: string[],
-  ): Promise<UserEntity | null> {
-    return await this.userRepository.findOne({
-      where: { username },
-      relations,
-    });
+  ): Promise<UserEntity> {
+    const user = await this.findByUsername(username);
+
+    if (!user) {
+      throw new UnprocessableEntityException('User does not exist');
+    }
+
+    return user;
   }
 
-  public async findByEmail(email: string): Promise<UserEntity | null> {
-    return await this.userRepository.findOne({ where: { email } });
+  private async buildUserResponseDto(
+    user: UserEntity,
+    currentUser?: UserEntity,
+  ): Promise<UserResponseDto> {
+    const profile = await this.profileService.findByUserIdOrThrowError(user.id);
+    const postPreviews = await this.postService.getPostPreviewsByUsername(
+      user.username,
+      { limit: defaultPostPreviewCountConstant, offset: 0 },
+    );
+    const isSubscription = currentUser
+      ? await this.subscriptionService.checkSubscription(
+          user.id,
+          currentUser.id,
+        )
+      : false;
+
+    return {
+      id: user.id,
+      username: user.username,
+      postCount: user.postCount,
+      subscriberCount: user.subscriberCount,
+      subscriptionCount: user.subscriptionCount,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      photo: profile.photo,
+      isSubscription,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      postPreviews,
+    };
+  }
+
+  private async buildUserPreviewDto(
+    user: UserEntity,
+    currentUserId: number,
+  ): Promise<UserPreviewDto> {
+    const profile = await this.profileService.findByUserIdOrThrowError(user.id);
+    const isSubscription = await this.subscriptionService.checkSubscription(
+      user.id,
+      currentUserId,
+    );
+    return {
+      username: user.username,
+      photo: profile.photo,
+      isSubscription,
+    };
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    return await hash(password, 10);
   }
 }

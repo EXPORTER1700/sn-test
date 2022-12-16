@@ -16,8 +16,6 @@ $ npm run start:dev
 $ npm run db:migrate
 #Drop DB
 $ npm run db:drop
-#Generate new migration
-$ npm run db:generate -n src/migrations/'MigrationName'
 ```
 
 ## Stay in touch

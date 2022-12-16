@@ -1,145 +1,60 @@
 import {
   ForbiddenException,
-  forwardRef,
-  Inject,
   Injectable,
-  UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { TokenService } from '@app/modules/token/token.service';
-import { CreateUserDto } from '@app/modules/user/dto/createUser.dto';
 import { UserService } from '@app/modules/user/user.service';
+import { CreateUserDto } from '@app/modules/user/dto/create-user.dto';
 import { MailService } from '@app/modules/mail/mail.service';
-import { UserStatusEnum } from '@app/modules/user/types/userStatus.enum';
-import { Response } from 'express';
-import { ConfigService } from '@nestjs/config';
-import { LoginUserDto } from '@app/modules/auth/dto/loginUser.dto';
-import * as bcrypt from 'bcrypt';
-import { RedisSessionService } from '@app/modules/redis-session/redis-session.service';
-import { TokenPayloadInterface } from '@app/modules/token/types/tokenPayload.interface';
-import { ResetPasswordDto } from '@app/modules/auth/dto/resetPassword.dto';
+import { TokenService } from '@app/modules/token/token.service';
+import { SuccessResponseDto } from '@app/common/dto/success-response.dto';
+import { UserStatusEnum } from '@app/modules/user/types/user-status.enum';
+import { compare } from 'bcrypt';
+import { UserEntity } from '@app/modules/user/user.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly tokenService: TokenService,
-    @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly mailService: MailService,
-    private readonly configService: ConfigService,
-    private readonly redisService: RedisSessionService,
+    private readonly tokenService: TokenService,
   ) {}
 
-  public async registration(dto: CreateUserDto) {
+  public async registration(dto: CreateUserDto): Promise<SuccessResponseDto> {
     const user = await this.userService.createUser(dto);
-
     await this.mailService.sendActivationList(user);
 
-    return;
+    return new SuccessResponseDto();
   }
 
-  public async confirmEmail(token: string, res: Response) {
-    const payload = this.tokenService.verifyToken(token);
+  public async confirmEmail(token: string): Promise<SuccessResponseDto> {
+    const { id } = this.tokenService.verifyActivationToken(token);
+    await this.userService.activateUser(id);
 
-    const user = await this.userService.findByIdWithRelations(payload.id);
-
-    if (!user) {
-      throw new UnprocessableEntityException('User does not exist');
-    }
-
-    user.status = UserStatusEnum.ACTIVATED;
-    await user.save();
-
-    return res.redirect(this.configService.get('FRONTEND_URL') as string);
+    return new SuccessResponseDto();
   }
 
-  public async login(dto: LoginUserDto, res: Response): Promise<void> {
-    const user = await this.userService.findByUsernameWithRelations(
-      dto.username,
-    );
+  public async login(username: string, password: string): Promise<UserEntity> {
+    const user = await this.userService.findByUsernameOrThrowError(username);
 
-    if (!user) {
+    const isPasswordValid = await this.checkPassword(password, user.password);
+
+    if (!isPasswordValid)
       throw new UnprocessableEntityException('User does not exist');
-    }
 
-    if (user.status === UserStatusEnum.BANNED) {
+    if (user.status === UserStatusEnum.NOT_CONFIRMED)
+      throw new ForbiddenException('Email is not confirmed');
+
+    if (user.status === UserStatusEnum.BANNED)
       throw new ForbiddenException('User is banned');
-    }
 
-    if (user.status === UserStatusEnum.NOT_CONFIRMED) {
-      throw new ForbiddenException('Email does not activate');
-    }
-
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-
-    if (!isPasswordValid) {
-      throw new UnprocessableEntityException('User does not exist');
-    }
-
-    await this.sendTokens({ id: user.id, username: user.username }, res);
+    return user;
   }
 
-  public async logout(userId: number) {
-    await this.redisService.delete(userId);
-  }
-
-  public async sendResetPasswordList(email: string): Promise<void> {
-    const userByEmail = await this.userService.findByEmail(email);
-
-    if (!userByEmail) {
-      throw new UnprocessableEntityException(
-        'User with this email does not exist',
-      );
-    }
-
-    await this.mailService.sendResetPasswordList(email);
-  }
-
-  public async resetPassword(
-    dto: ResetPasswordDto,
-    token: string,
-    res: Response,
-  ) {
-    const tokenPayload = this.tokenService.verifyResetPasswordToken(token);
-
-    await this.userService.resetPassword(dto, tokenPayload.email);
-
-    return res.redirect(this.configService.get('FRONTEND_URL') + 'login');
-  }
-
-  public async refresh(refreshToken: string, res: Response): Promise<void> {
-    const tokenPayload = await this.tokenService.verifyToken(refreshToken);
-
-    if (!tokenPayload) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-
-    const tokenFromCache = await this.redisService.get(tokenPayload.id);
-
-    if (!tokenFromCache || tokenFromCache !== refreshToken) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-
-    await this.sendTokens(
-      { id: tokenPayload.id, username: tokenPayload.username },
-      res,
-    );
-  }
-
-  private async sendTokens(
-    payload: TokenPayloadInterface,
-    res: Response,
-  ): Promise<Response> {
-    const accessToken = this.tokenService.generateAccessToken(payload);
-    const refreshToken = this.tokenService.generateRefreshToken(payload);
-
-    await this.redisService.set(payload.id, refreshToken);
-
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-
-    return res.send({ accessToken });
+  private async checkPassword(
+    password: string,
+    hash: string,
+  ): Promise<boolean> {
+    return await compare(password, hash);
   }
 }

@@ -1,18 +1,19 @@
 import {
   BaseEntity,
-  Column,
-  CreateDateColumn,
   Entity,
-  ManyToMany,
-  OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
-  JoinTable,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Column,
+  OneToOne,
+  OneToMany,
 } from 'typeorm';
-import { Exclude } from 'class-transformer';
-import { UserStatusEnum } from '@app/modules/user/types/userStatus.enum';
+import { UserStatusEnum } from '@app/modules/user/types/user-status.enum';
 import { ProfileEntity } from '@app/modules/profile/profile.entity';
+import { Exclude } from 'class-transformer';
 import { PostEntity } from '@app/modules/post/post.entity';
+import { LikeEntity } from '@app/modules/like/like.entity';
+import { SubscriptionEntity } from '@app/modules/subscription/subscription.entity';
 import { CommentEntity } from '@app/modules/comment/comment.entity';
 
 @Entity('users')
@@ -20,16 +21,35 @@ export class UserEntity extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', length: 36, nullable: false })
   username: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', length: 128, nullable: false })
   @Exclude({ toPlainOnly: true })
   email: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 128, nullable: false })
   @Exclude({ toPlainOnly: true })
   password: string;
+
+  @Column({ name: 'post_count', type: 'int', default: 0, nullable: false })
+  postCount: number;
+
+  @Column({
+    name: 'subscription_count',
+    type: 'int',
+    default: 0,
+    nullable: false,
+  })
+  subscriptionCount: number;
+
+  @Column({
+    name: 'subscriber_count',
+    type: 'int',
+    default: 0,
+    nullable: false,
+  })
+  subscriberCount: number;
 
   @Column({
     type: 'enum',
@@ -38,32 +58,30 @@ export class UserEntity extends BaseEntity {
   })
   status: UserStatusEnum;
 
-  @Column({ default: 0 })
-  subscriptionsCount: number;
-
-  @Column({ default: 0 })
-  subscribersCount: number;
-
-  @Column({ default: 0 })
-  postsCount: number;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @OneToOne(() => ProfileEntity, (profile) => profile.user, { eager: true })
+  @OneToOne(() => ProfileEntity, (profile) => profile.user)
   profile: ProfileEntity;
 
   @OneToMany(() => PostEntity, (post) => post.user)
   posts: PostEntity[];
 
+  @OneToMany(() => LikeEntity, (like) => like.user)
+  liked: LikeEntity[];
+
+  @OneToMany(() => SubscriptionEntity, (subscription) => subscription.user)
+  subscribers: SubscriptionEntity[];
+
+  @OneToMany(
+    () => SubscriptionEntity,
+    (subscription) => subscription.subscriber,
+  )
+  subscriptions: SubscriptionEntity[];
+
   @OneToMany(() => CommentEntity, (comment) => comment.user)
   comments: CommentEntity[];
 
-  @ManyToMany(() => PostEntity)
-  @JoinTable()
-  liked: PostEntity[];
+  @CreateDateColumn({ name: 'created_at', type: Date, default: new Date() })
+  createdAt: Date;
 
-  @ManyToMany(() => UserEntity)
-  @JoinTable()
-  subscriptions: UserEntity[];
+  @UpdateDateColumn({ name: 'updated_at', type: Date, default: new Date() })
+  updatedAt: Date;
 }
