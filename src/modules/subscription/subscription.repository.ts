@@ -44,20 +44,18 @@ export class SubscriptionRepository extends Repository<SubscriptionEntity> {
     query: BaseQueryDto | undefined,
   ): Promise<number[]> {
     const queryBuilder = super
-      .createQueryBuilder()
-      .select(['subscriptions.user_id1', 'subscriptions.user_id2'])
-      .from(SubscriptionEntity, 'subscriptions')
-      .andWhere('subscriptions.user_id2 = :id', { id: userId })
-      .select('subscriptions.user_id1')
+      .createQueryBuilder('subscriptions')
+      .loadAllRelationIds()
+      .andWhere('subscriptions.subscriber = :id', { id: userId })
       .orderBy('subscriptions.id');
 
     if (query) {
       queryBuilder.limit(query.limit).offset(query.offset);
     }
 
-    const result = await queryBuilder.getRawMany();
+    const result = await queryBuilder.getMany();
 
-    return result.map((item) => item.user_id1); //TODO
+    return result.map((item) => item.user) as any as number[]; //TODO
   }
 
   public async getSubscribersIdsByUserId(
@@ -65,19 +63,17 @@ export class SubscriptionRepository extends Repository<SubscriptionEntity> {
     query: BaseQueryDto | undefined,
   ): Promise<number[]> {
     const queryBuilder = super
-      .createQueryBuilder()
-      .select(['subscriptions.user_id1', 'subscriptions.user_id2'])
-      .from(SubscriptionEntity, 'subscriptions')
-      .andWhere('subscriptions.user_id1 = :id', { id: userId })
-      .select('subscriptions.user_id2')
+      .createQueryBuilder('subscriptions')
+      .loadAllRelationIds()
+      .andWhere('subscriptions.user = :id', { id: userId })
       .orderBy('subscriptions.id');
 
     if (query) {
       queryBuilder.limit(query.limit).offset(query.offset);
     }
 
-    const result = await queryBuilder.getRawMany();
+    const result = await queryBuilder.getMany();
 
-    return result.map((item) => item.user_id2); //TODO
+    return result.map((item) => item.subscriber) as any as number[]; //TODO
   }
 }

@@ -38,12 +38,13 @@ export class PostRepository extends Repository<PostEntity> {
     return await queryBuilder.getMany();
   }
 
-  public async getFeed(
+  public async getPostsByUsersIdsWithUserRelation(
     ids: number[],
     query: BaseQueryDto,
   ): Promise<PostEntity[]> {
     const queryBuilder = super
       .createQueryBuilder('posts')
+      .leftJoinAndSelect('posts.user', 'users')
       .andWhere('posts.user IN (:...ids)', { ids })
       .orderBy('posts.id', 'DESC')
       .limit(query.limit)

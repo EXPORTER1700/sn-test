@@ -29,8 +29,10 @@ export class PostContentEntity extends BaseEntity {
   post: PostEntity;
 
   @CreateDateColumn({ name: 'created_at', type: Date, default: new Date() })
+  @Exclude({ toPlainOnly: true })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at', type: Date, default: new Date() })
+  @Exclude({ toPlainOnly: true })
   updatedAt: Date;
 }

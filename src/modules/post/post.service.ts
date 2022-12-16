@@ -134,13 +134,16 @@ export class PostService {
       return [];
     }
 
-    const posts = await this.postRepository.getFeed(subscriptionsIds, query);
+    const posts = await this.postRepository.getPostsByUsersIdsWithUserRelation(
+      subscriptionsIds,
+      query,
+    );
 
     return await Promise.all(
       posts.map(async (post) => {
         const content = await this.postContentService.findAllByPostId(post.id);
 
-        return await this.buildPostResponseDto(post, content, currentUser);
+        return await this.buildPostResponseDto(post, content, post.user);
       }),
     );
   }
