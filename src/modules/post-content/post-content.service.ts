@@ -25,7 +25,7 @@ export class PostContentService {
     );
 
     return await this.postContentRepository.createPostContent(
-      uploadResponse.Key,
+      uploadResponse.Location,
       type,
       post,
     );

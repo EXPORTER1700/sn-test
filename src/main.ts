@@ -46,17 +46,18 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  const PORT = config.get('APP_PORT') || 3000;
+
   const swaggerConfig = new DocumentBuilder()
     .setTitle('API with NestJS')
     .setDescription('API developed throughout the API with NestJS course')
+    .addServer(`http://localhost:${PORT}`)
     .setVersion('1.0')
-    .addCookieAuth()
+    .addCookieAuth('sn-test')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, document);
-
-  const PORT = config.get('APP_PORT') || 3000;
 
   await app.listen(PORT, () => console.log(`App started on port: ${PORT}`));
 }

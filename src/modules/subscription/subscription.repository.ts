@@ -55,7 +55,7 @@ export class SubscriptionRepository extends Repository<SubscriptionEntity> {
 
     const result = await queryBuilder.getMany();
 
-    return result.map((item) => item.user) as any as number[]; //TODO
+    return result.map((item) => item.user) as any as number[];
   }
 
   public async getSubscribersIdsByUserId(
