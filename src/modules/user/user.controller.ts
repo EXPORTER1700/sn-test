@@ -7,8 +7,10 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { GetCurrentUserId } from '@app/modules/auth/decorator/get-current-user-id.decorator';
 import { UserService } from '@app/modules/user/user.service';
 import { BaseQueryDto } from '@app/common/dto/base-query.dto';
@@ -181,5 +183,21 @@ export class UserController {
     @Param('token') token: string,
   ): Promise<SuccessResponseDto> {
     return this.userService.confirmUpdatedEmail(token);
+  }
+
+  @Delete()
+  @ApiOkResponse({
+    type: SuccessResponseDto,
+    description: 'User was successfully delete and logout',
+  })
+  @ApiUnprocessableEntityResponse({
+    type: UnprocessableErrorApiResponseDto,
+    description: 'User does not exist',
+  })
+  public deleteUser(
+    @GetCurrentUserId() currentUserId: number,
+    @Req() req: Request,
+  ) {
+    return this.userService.deleteUser(currentUserId, req);
   }
 }

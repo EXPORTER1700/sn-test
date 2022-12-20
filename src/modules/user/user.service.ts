@@ -23,6 +23,8 @@ import { UpdateEmailDto } from '@app/modules/user/dto/update-email.dto';
 import { MailService } from '@app/modules/mail/mail.service';
 import { TokenService } from '@app/modules/token/token.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Request } from 'express';
+import { AuthService } from '@app/modules/auth/auth.service';
 
 @Injectable()
 export class UserService {
@@ -34,6 +36,8 @@ export class UserService {
     private readonly subscriptionService: SubscriptionService,
     private readonly mailService: MailService,
     private readonly tokenService: TokenService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {}
 
   public async createUser(dto: CreateUserDto): Promise<UserEntity> {
@@ -100,7 +104,7 @@ export class UserService {
     username: string,
     currentUserId: number,
   ): Promise<SuccessResponseDto> {
-    const user = await this.findByUsernameOrThrowError(username); //TODO Create index to username
+    const user = await this.findByUsernameOrThrowError(username);
     const currentUser = await this.findByIdOrThrowError(currentUserId);
     await this.subscriptionService.deleteSubscription(user.id, currentUser.id);
 
@@ -188,6 +192,16 @@ export class UserService {
     await user.save();
 
     return await this.buildUserResponseDto(user);
+  }
+
+  public async deleteUser(
+    currentUserId: number,
+    req: Request,
+  ): Promise<SuccessResponseDto> {
+    const user = await this.findByIdOrThrowError(currentUserId);
+    await user.remove();
+    await this.authService.logout(req);
+    return new SuccessResponseDto();
   }
 
   public async updateEmail(

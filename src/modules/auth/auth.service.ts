@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   UnprocessableEntityException,
@@ -17,6 +19,7 @@ import { ResetPasswordDto } from '@app/modules/user/dto/reset-password.dto';
 @Injectable()
 export class AuthService {
   constructor(
+    @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly mailService: MailService,
     private readonly tokenService: TokenService,
@@ -57,7 +60,9 @@ export class AuthService {
   }
 
   public async logout(req: Request): Promise<SuccessResponseDto> {
-    req.logout((e) => console.log(e));
+    req.logout((e) => {
+      throw new InternalServerErrorException('Internal server error');
+    });
 
     if (req.isAuthenticated()) {
       throw new InternalServerErrorException('Internal server error');

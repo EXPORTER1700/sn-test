@@ -9,12 +9,14 @@ import { PostModule } from '@app/modules/post/post.module';
 import { SubscriptionModule } from '@app/modules/subscription/subscription.module';
 import { MailModule } from '@app/modules/mail/mail.module';
 import { TokenModule } from '@app/modules/token/token.module';
+import { AuthModule } from '@app/modules/auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserEntity]),
     ProfileModule,
     forwardRef(() => PostModule),
+    forwardRef(() => AuthModule),
     SubscriptionModule,
     MailModule,
     TokenModule,
