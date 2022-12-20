@@ -36,4 +36,8 @@ export class UserRepository extends Repository<UserEntity> {
 
     return await queryBuilder.getMany();
   }
+
+  public async findByEmail(email: string): Promise<UserEntity | null> {
+    return await super.findOne({ where: { email } });
+  }
 }

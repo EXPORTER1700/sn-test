@@ -7,7 +7,7 @@ import {
 import { UserRepository } from '@app/modules/user/user.repository';
 import { CreateUserDto } from '@app/modules/user/dto/create-user.dto';
 import { UserEntity } from '@app/modules/user/user.entity';
-import { hash } from 'bcrypt';
+import { compare, hash } from 'bcrypt';
 import { ProfileService } from '@app/modules/profile/profile.service';
 import { UserStatusEnum } from '@app/modules/user/types/user-status.enum';
 import { PostService } from '@app/modules/post/post.service';
@@ -17,6 +17,9 @@ import { SuccessResponseDto } from '@app/common/dto/success-response.dto';
 import { SubscriptionService } from '@app/modules/subscription/subscription.service';
 import { UserPreviewDto } from '@app/modules/user/dto/user-preview.dto';
 import { BaseQueryDto } from '@app/common/dto/base-query.dto';
+import { ResetPasswordDto } from '@app/modules/user/dto/reset-password.dto';
+import { UpdateUsernameDto } from '@app/modules/user/dto/update-username.dto';
+import { UpdateEmailDto } from '@app/modules/user/dto/update-email.dto';
 
 @Injectable()
 export class UserService {
@@ -150,6 +153,43 @@ export class UserService {
     );
   }
 
+  public async resetPassword(
+    email: string,
+    dto: ResetPasswordDto,
+  ): Promise<SuccessResponseDto> {
+    const user = await this.findByEmailOrThrowError(email);
+    user.password = await this.hashPassword(dto.password);
+    await user.save();
+
+    return new SuccessResponseDto();
+  }
+
+  public async updateUsername(
+    currentUserId: number,
+    dto: UpdateUsernameDto,
+  ): Promise<UserResponseDto> {
+    await this.findByUsernameAndThrowErrorIfExist(dto.newUsername);
+    const user = await this.findByIdOrThrowError(currentUserId);
+    const isPasswordValid = await this.checkPassword(
+      dto.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnprocessableEntityException('Password is not valid');
+    }
+
+    user.username = dto.newUsername;
+    await user.save();
+
+    return await this.buildUserResponseDto(user);
+  }
+
+  public async updateEmail(currentUseId: number, dto: UpdateEmailDto) {
+    await this.findByEmailAndThrowErrorIfExist(dto.email);
+    const user = await this.findByIdOrThrowError(currentUseId); //TODO
+  }
+
   public async findByUsername(username: string): Promise<UserEntity | null> {
     return await this.userRepository.findByUsername(username);
   }
@@ -178,6 +218,44 @@ export class UserService {
     }
 
     return user;
+  }
+
+  public async findByUsernameAndThrowErrorIfExist(
+    username: string,
+  ): Promise<never | void> {
+    const user = await this.findByUsername(username);
+
+    if (user) {
+      throw new UnprocessableEntityException('User is already exist');
+    }
+  }
+
+  public async findByEmail(email: string): Promise<UserEntity | null> {
+    return await this.userRepository.findByEmail(email);
+  }
+
+  public async findByEmailOrThrowError(email: string): Promise<UserEntity> {
+    const user = await this.findByEmail(email);
+
+    if (!user) {
+      throw new UnprocessableEntityException('User does not exist');
+    }
+
+    return user;
+  }
+
+  public async findByEmailAndThrowErrorIfExist(
+    email: string,
+  ): Promise<never | void> {
+    const user = await this.findByEmail(email);
+
+    if (user) {
+      throw new UnprocessableEntityException('Email is already taken');
+    }
+  }
+
+  public async checkPassword(password: string, hash: string): Promise<boolean> {
+    return await compare(password, hash);
   }
 
   private async buildUserResponseDto(

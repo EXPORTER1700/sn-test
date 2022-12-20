@@ -7,6 +7,7 @@ import {
   Column,
   OneToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { UserStatusEnum } from '@app/modules/user/types/user-status.enum';
 import { ProfileEntity } from '@app/modules/profile/profile.entity';
@@ -22,10 +23,12 @@ export class UserEntity extends BaseEntity {
   id: number;
 
   @Column({ type: 'varchar', length: 36, nullable: false })
+  @Index()
   username: string;
 
   @Column({ type: 'varchar', length: 128, nullable: false })
   @Exclude({ toPlainOnly: true })
+  @Index()
   email: string;
 
   @Column({ type: 'varchar', length: 128, nullable: false })

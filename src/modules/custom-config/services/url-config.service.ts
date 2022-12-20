@@ -6,9 +6,7 @@ export class UrlConfigService {
   constructor(private readonly configService: CustomConfigService) {}
 
   public getFrontendUrl(): string {
-    const url = this.configService.get<string>('FRONTEND_URL');
-
-    return `http://${url}`;
+    return this.configService.get<string>('FRONTEND_URL');
   }
 
   public getFrontendLoginUrl(): string {

@@ -1,16 +1,18 @@
 import {
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { UserService } from '@app/modules/user/user.service';
 import { CreateUserDto } from '@app/modules/user/dto/create-user.dto';
 import { MailService } from '@app/modules/mail/mail.service';
 import { TokenService } from '@app/modules/token/token.service';
 import { SuccessResponseDto } from '@app/common/dto/success-response.dto';
 import { UserStatusEnum } from '@app/modules/user/types/user-status.enum';
-import { compare } from 'bcrypt';
 import { UserEntity } from '@app/modules/user/user.entity';
+import { ResetPasswordDto } from '@app/modules/user/dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -37,7 +39,10 @@ export class AuthService {
   public async login(username: string, password: string): Promise<UserEntity> {
     const user = await this.userService.findByUsernameOrThrowError(username);
 
-    const isPasswordValid = await this.checkPassword(password, user.password);
+    const isPasswordValid = await this.userService.checkPassword(
+      password,
+      user.password,
+    );
 
     if (!isPasswordValid)
       throw new UnprocessableEntityException('User does not exist');
@@ -51,10 +56,30 @@ export class AuthService {
     return user;
   }
 
-  private async checkPassword(
-    password: string,
-    hash: string,
-  ): Promise<boolean> {
-    return await compare(password, hash);
+  public async logout(req: Request): Promise<SuccessResponseDto> {
+    req.logout((e) => console.log(e));
+
+    if (req.isAuthenticated()) {
+      throw new InternalServerErrorException('Internal server error');
+    }
+
+    return new SuccessResponseDto();
+  }
+
+  public async forgotPassword(email: string): Promise<SuccessResponseDto> {
+    await this.userService.findByEmailOrThrowError(email);
+    await this.mailService.sendResetPasswordList(email);
+
+    return new SuccessResponseDto();
+  }
+
+  public async resetPassword(
+    token: string,
+    dto: ResetPasswordDto,
+  ): Promise<SuccessResponseDto> {
+    const { email } = this.tokenService.verifyResetPasswordToken(token);
+    await this.userService.resetPassword(email, dto);
+
+    return new SuccessResponseDto();
   }
 }

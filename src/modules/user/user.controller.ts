@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -24,6 +26,7 @@ import { UserPreviewDto } from '@app/modules/user/dto/user-preview.dto';
 import { LocalAuthGuard } from '@app/modules/auth/guard/auth.guard';
 import { UnprocessableErrorApiResponseDto } from '@app/common/swagger-api-response/dto/unprocessable-error-api-response.dto';
 import { UnauthorizedErrorApiResponseDto } from '@app/common/swagger-api-response/dto/unauthorized-error-api-response.dto';
+import { UpdateUsernameDto } from '@app/modules/user/dto/update-username.dto';
 
 @Controller('user')
 @ApiTags('user')
@@ -130,5 +133,21 @@ export class UserController {
       currentUserId,
       query,
     );
+  }
+
+  @Put('username')
+  @ApiCreatedResponse({
+    type: UserResponseDto,
+    description: 'Username was successfully update',
+  })
+  @ApiUnprocessableEntityResponse({
+    type: UnprocessableErrorApiResponseDto,
+    description: 'User does not exist or new username is already taken',
+  })
+  public updateUsername(
+    @GetCurrentUserId() currentUserId: number,
+    @Body() dto: UpdateUsernameDto,
+  ): Promise<UserResponseDto> {
+    return this.userService.updateUsername(currentUserId, dto);
   }
 }

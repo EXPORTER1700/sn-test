@@ -96,7 +96,6 @@ export class CommentService {
   }
 
   private buildCommentAuthorDto(
-    //TODO make a common method for posts and comments?
     user: UserEntity,
     profile: ProfileEntity,
   ): CommentAuthorDto {
