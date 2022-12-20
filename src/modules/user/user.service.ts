@@ -20,6 +20,8 @@ import { BaseQueryDto } from '@app/common/dto/base-query.dto';
 import { ResetPasswordDto } from '@app/modules/user/dto/reset-password.dto';
 import { UpdateUsernameDto } from '@app/modules/user/dto/update-username.dto';
 import { UpdateEmailDto } from '@app/modules/user/dto/update-email.dto';
+import { MailService } from '@app/modules/mail/mail.service';
+import { TokenService } from '@app/modules/token/token.service';
 
 @Injectable()
 export class UserService {
@@ -29,6 +31,8 @@ export class UserService {
     @Inject(forwardRef(() => PostService))
     private readonly postService: PostService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly mailService: MailService,
+    private readonly tokenService: TokenService,
   ) {}
 
   public async createUser(dto: CreateUserDto): Promise<UserEntity> {
@@ -185,9 +189,35 @@ export class UserService {
     return await this.buildUserResponseDto(user);
   }
 
-  public async updateEmail(currentUseId: number, dto: UpdateEmailDto) {
+  public async updateEmail(
+    currentUseId: number,
+    dto: UpdateEmailDto,
+  ): Promise<SuccessResponseDto> {
     await this.findByEmailAndThrowErrorIfExist(dto.email);
-    const user = await this.findByIdOrThrowError(currentUseId); //TODO
+    const user = await this.findByIdOrThrowError(currentUseId);
+
+    const isPasswordValid = await this.checkPassword(
+      dto.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnprocessableEntityException('Password is not valid');
+    }
+
+    await this.mailService.sendUpdateEmailList(user.id, dto.email);
+
+    return new SuccessResponseDto();
+  }
+
+  public async confirmUpdatedEmail(token: string): Promise<SuccessResponseDto> {
+    const { newEmail, id } = this.tokenService.verifyUpdateEmailToken(token);
+
+    await this.findByEmailAndThrowErrorIfExist(newEmail);
+    const user = await this.findByIdOrThrowError(id);
+    user.email = newEmail;
+
+    return new SuccessResponseDto();
   }
 
   public async findByUsername(username: string): Promise<UserEntity | null> {
@@ -280,12 +310,10 @@ export class UserService {
       postCount: user.postCount,
       subscriberCount: user.subscriberCount,
       subscriptionCount: user.subscriptionCount,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      photo: profile.photo,
-      isSubscription,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      profile,
+      isSubscription,
       postPreviews,
     };
   }

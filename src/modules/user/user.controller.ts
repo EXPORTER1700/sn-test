@@ -27,6 +27,7 @@ import { LocalAuthGuard } from '@app/modules/auth/guard/auth.guard';
 import { UnprocessableErrorApiResponseDto } from '@app/common/swagger-api-response/dto/unprocessable-error-api-response.dto';
 import { UnauthorizedErrorApiResponseDto } from '@app/common/swagger-api-response/dto/unauthorized-error-api-response.dto';
 import { UpdateUsernameDto } from '@app/modules/user/dto/update-username.dto';
+import { UpdateEmailDto } from '@app/modules/user/dto/update-email.dto';
 
 @Controller('user')
 @ApiTags('user')
@@ -149,5 +150,36 @@ export class UserController {
     @Body() dto: UpdateUsernameDto,
   ): Promise<UserResponseDto> {
     return this.userService.updateUsername(currentUserId, dto);
+  }
+
+  @Put('email')
+  @ApiCreatedResponse({
+    type: SuccessResponseDto,
+    description: 'Send list to new email',
+  })
+  @ApiUnprocessableEntityResponse({
+    type: UnprocessableErrorApiResponseDto,
+    description: 'User does not exist or password is not valid',
+  })
+  public updateEmail(
+    @GetCurrentUserId() currentUserId: number,
+    @Body() dto: UpdateEmailDto,
+  ): Promise<SuccessResponseDto> {
+    return this.userService.updateEmail(currentUserId, dto);
+  }
+
+  @Get('confirm-updated-email/:token')
+  @ApiOkResponse({
+    type: SuccessResponseDto,
+    description: 'Email is successfully confirmed',
+  })
+  @ApiUnprocessableEntityResponse({
+    type: UnprocessableErrorApiResponseDto,
+    description: 'User does not exist or email is already taken',
+  })
+  public confirmUpdatedEmail(
+    @Param('token') token: string,
+  ): Promise<SuccessResponseDto> {
+    return this.userService.confirmUpdatedEmail(token);
   }
 }

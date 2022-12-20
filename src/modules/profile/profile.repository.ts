@@ -17,4 +17,8 @@ export class ProfileRepository extends Repository<ProfileEntity> {
   public async findByUserId(userId: number): Promise<ProfileEntity | null> {
     return await super.findOne({ where: { user: { id: userId } } });
   }
+
+  public async findById(id: number): Promise<ProfileEntity | null> {
+    return await this.findOne({ where: { id } });
+  }
 }

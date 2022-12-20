@@ -7,6 +7,8 @@ import { UserRepository } from '@app/modules/user/user.repository';
 import { ProfileModule } from '@app/modules/profile/profile.module';
 import { PostModule } from '@app/modules/post/post.module';
 import { SubscriptionModule } from '@app/modules/subscription/subscription.module';
+import { MailModule } from '@app/modules/mail/mail.module';
+import { TokenModule } from '@app/modules/token/token.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { SubscriptionModule } from '@app/modules/subscription/subscription.modul
     ProfileModule,
     forwardRef(() => PostModule),
     SubscriptionModule,
+    MailModule,
+    TokenModule,
   ],
   controllers: [UserController],
   providers: [UserService, UserRepository],

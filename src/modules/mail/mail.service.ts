@@ -12,10 +12,9 @@ export class MailService {
     private readonly tokenService: TokenService,
   ) {}
 
-  public async sendActivationList(user: UserEntity) {
+  public async sendActivationList(user: UserEntity): Promise<void> {
     const token = this.tokenService.generateActivationToken({
       id: user.id,
-      username: user.username,
     });
 
     const url = this.configService.getFrontendConfirmEmailUrl() + '/' + token;
@@ -26,6 +25,24 @@ export class MailService {
         html: `
         <h1>Follow this link to confirm your email</h1>
         <a href="${url}">Activate</a>
+      `,
+      });
+    } catch (e) {
+      throw new InternalServerErrorException('Internal server error');
+    }
+  }
+
+  public async sendUpdateEmailList(userId: number, newEmail: string) {
+    const token = this.tokenService.generateUpdateEmailToken(userId, newEmail);
+
+    const url = this.configService.getFrontendConfirmEmailUrl() + '/' + token;
+
+    try {
+      await this.mailerService.sendMail({
+        to: newEmail,
+        html: `
+        <h1>Follow this link to confirm your updated email</h1>
+        <a href="${url}">Confirm</a>
       `,
       });
     } catch (e) {

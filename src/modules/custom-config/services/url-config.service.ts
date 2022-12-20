@@ -17,6 +17,10 @@ export class UrlConfigService {
     return this.getFrontendUrl() + '/confirm-email';
   }
 
+  public getFrontendUpdateEmailUrl() {
+    return this.getFrontendUrl() + '/update-email';
+  }
+
   public getFrontendResetPasswordUrl(): string {
     return this.getFrontendUrl() + '/reset-password';
   }
