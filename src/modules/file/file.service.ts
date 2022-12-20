@@ -4,7 +4,6 @@ import { v4 } from 'uuid';
 import { Express } from 'express';
 import { ManagedUpload } from 'aws-sdk/clients/s3';
 import { join } from 'path';
-import { Readable } from 'stream';
 import { UploadFileContentTypeEnum } from '@app/modules/file/types/upload-file-content-type.enum';
 import { S3ConfigService } from '@app/modules/custom-config/services/s3-config.service';
 
@@ -38,21 +37,6 @@ export class FileService {
     } catch (e) {
       throw new InternalServerErrorException(
         'An error occurred while loading the file',
-      );
-    }
-  }
-
-  public getFile(key: string): Readable {
-    try {
-      return this.s3
-        .getObject({
-          Bucket: this.configService.getS3Bucket(),
-          Key: key,
-        })
-        .createReadStream();
-    } catch (e) {
-      throw new InternalServerErrorException(
-        'An error occurred while downloading the file',
       );
     }
   }

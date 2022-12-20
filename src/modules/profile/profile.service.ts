@@ -64,4 +64,9 @@ export class ProfileService {
 
     return profile;
   }
+
+  public async deleteProfileByUserId(userId: number): Promise<ProfileEntity> {
+    const profile = await this.findByUserIdOrThrowError(userId);
+    return await profile.remove();
+  }
 }

@@ -15,6 +15,7 @@ import { PostContentModule } from './modules/post-content/post-content.module';
 import { LikeModule } from './modules/like/like.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { CommentModule } from './modules/comment/comment.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CommentModule } from './modules/comment/comment.module';
       }),
       global: true,
     },
+    ScheduleModule.forRoot(),
     MailModule,
     TokenModule,
     FileModule,

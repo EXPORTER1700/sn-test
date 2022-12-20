@@ -18,10 +18,10 @@ export class createSubscriptions1670946425076 implements MigrationInterface {
     return `CREATE TABLE ${this.table}
             (
                 id         SERIAL PRIMARY KEY,
-                user_id1   INT REFERENCES users (id) NOT NULL,
-                user_id2   INT REFERENCES users (id) NOT NULL,
-                created_at TIMESTAMP                 NOT NULL DEFAULT now(),
-                updated_at TIMESTAMP                 NOT NULL DEFAULT now()
+                user_id1   INT REFERENCES users (id) ON DELETE CASCADE NOT NULL,
+                user_id2   INT REFERENCES users (id) ON DELETE CASCADE NOT NULL,
+                created_at TIMESTAMP                                   NOT NULL DEFAULT now(),
+                updated_at TIMESTAMP                                   NOT NULL DEFAULT now()
             );`;
   }
 

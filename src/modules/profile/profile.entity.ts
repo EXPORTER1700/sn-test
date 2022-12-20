@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { UserEntity } from '@app/modules/user/user.entity';
 import { ApiProperty } from '@nestjs/swagger';
@@ -29,6 +30,7 @@ export class ProfileEntity extends BaseEntity {
   @Column({ name: 'photo', type: 'text', default: null })
   photo: string;
 
+  @Index()
   @OneToOne(() => UserEntity, (user) => user.profile, { nullable: false })
   @JoinColumn({ name: 'user_id', referencedColumnName: 'id' })
   user: UserEntity;

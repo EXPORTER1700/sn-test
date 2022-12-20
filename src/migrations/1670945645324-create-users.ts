@@ -28,16 +28,16 @@ export class createUsers1670945645324 implements MigrationInterface {
   private createTable(): string {
     return `CREATE TABLE ${this.table}
             (
-                id                  SERIAL PRIMARY KEY,
-                username            VARCHAR(36) UNIQUE  NOT NULL,
-                email               VARCHAR(128) UNIQUE NOT NULL,
-                password            VARCHAR(128)         NOT NULL,
-                post_count          INT                 NOT NULL DEFAULT (0),
+                id                 SERIAL PRIMARY KEY,
+                username           VARCHAR(36) UNIQUE  NOT NULL,
+                email              VARCHAR(128) UNIQUE NOT NULL,
+                password           VARCHAR(128)        NOT NULL,
+                post_count         INT                 NOT NULL DEFAULT (0),
                 subscriber_count   INT                 NOT NULL DEFAULT (0),
                 subscription_count INT                 NOT NULL DEFAULT (0),
-                status              user_status_enum    NOT NULL DEFAULT ('NOT_CONFIRMED'),
-                created_at          TIMESTAMP           NOT NULL DEFAULT now(),
-                updated_at          TIMESTAMP           NOT NULL DEFAULT now()
+                status             user_status_enum    NOT NULL DEFAULT ('NOT_CONFIRMED'),
+                created_at         TIMESTAMP           NOT NULL DEFAULT now(),
+                updated_at         TIMESTAMP           NOT NULL DEFAULT now()
             );`;
   }
 

@@ -18,12 +18,12 @@ export class createComments1670947134693 implements MigrationInterface {
     return `CREATE TABLE ${this.table}
             (
                 id         BIGSERIAL PRIMARY KEY,
-                text       VARCHAR(256)                 NOT NULL,
-                post_id    BIGINT REFERENCES posts (id) NOT NULL,
-                user_id    INT REFERENCES users (id)    NOT NULL,
-                reply_to   BIGINT REFERENCES comments (id),
-                created_at TIMESTAMP                    NOT NULL DEFAULT now(),
-                updated_at TIMESTAMP                    NOT NULL DEFAULT now()
+                text       VARCHAR(256)                                   NOT NULL,
+                post_id    BIGINT REFERENCES posts (id) ON DELETE CASCADE NOT NULL,
+                user_id    INT REFERENCES users (id) ON DELETE CASCADE    NOT NULL,
+                reply_to   BIGINT                                         REFERENCES comments (id) ON DELETE SET NULL,
+                created_at TIMESTAMP                                      NOT NULL DEFAULT now(),
+                updated_at TIMESTAMP                                      NOT NULL DEFAULT now()
             );`;
   }
 

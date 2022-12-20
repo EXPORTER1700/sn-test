@@ -18,10 +18,10 @@ export class createLikes1670947018434 implements MigrationInterface {
     return `CREATE TABLE ${this.table}
             (
                 id         SERIAL PRIMARY KEY,
-                user_id    INT REFERENCES users (id)    NOT NULL,
-                post_id    BIGINT REFERENCES posts (id) NOT NULL,
-                created_at TIMESTAMP                    NOT NULL DEFAULT now(),
-                updated_at TIMESTAMP                    NOT NULL DEFAULT now()
+                user_id    INT REFERENCES users (id) ON DELETE CASCADE    NOT NULL,
+                post_id    BIGINT REFERENCES posts (id) ON DELETE CASCADE NOT NULL,
+                created_at TIMESTAMP                                      NOT NULL DEFAULT now(),
+                updated_at TIMESTAMP                                      NOT NULL DEFAULT now()
             );`;
   }
 

@@ -19,11 +19,11 @@ export class createPosts1670946606579 implements MigrationInterface {
             (
                 id            BIGSERIAL PRIMARY KEY,
                 title         VARCHAR(256),
-                like_count    INT                       NOT NULL DEFAULT (0),
-                comment_count INT                       NOT NULL DEFAULT (0),
-                user_id       INT REFERENCES users (id) NOT NULL,
-                created_at    TIMESTAMP                 NOT NULL DEFAULT now(),
-                updated_at    TIMESTAMP                 NOT NULL DEFAULT now()
+                like_count    INT                                         NOT NULL DEFAULT (0),
+                comment_count INT                                         NOT NULL DEFAULT (0),
+                user_id       INT REFERENCES users (id) ON DELETE CASCADE NOT NULL,
+                created_at    TIMESTAMP                                   NOT NULL DEFAULT now(),
+                updated_at    TIMESTAMP                                   NOT NULL DEFAULT now()
             );`;
   }
 

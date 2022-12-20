@@ -21,11 +21,11 @@ export class createPostContents1670946760743 implements MigrationInterface {
     return `CREATE TABLE ${this.table}
             (
                 id         BIGSERIAL PRIMARY KEY,
-                post_id    BIGINT REFERENCES posts (id),
-                type       post_content_type_enum NOT NULL,
-                url        TEXT                   NOT NULL,
-                created_at TIMESTAMP              NOT NULL DEFAULT now(),
-                updated_at TIMESTAMP              NOT NULL DEFAULT now()
+                post_id    BIGINT REFERENCES posts (id) ON DELETE CASCADE NOT NULL,
+                type       post_content_type_enum                         NOT NULL,
+                url        TEXT                                           NOT NULL,
+                created_at TIMESTAMP                                      NOT NULL DEFAULT now(),
+                updated_at TIMESTAMP                                      NOT NULL DEFAULT now()
             );`;
   }
 

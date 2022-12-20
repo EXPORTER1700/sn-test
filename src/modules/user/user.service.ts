@@ -22,6 +22,7 @@ import { UpdateUsernameDto } from '@app/modules/user/dto/update-username.dto';
 import { UpdateEmailDto } from '@app/modules/user/dto/update-email.dto';
 import { MailService } from '@app/modules/mail/mail.service';
 import { TokenService } from '@app/modules/token/token.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class UserService {
@@ -336,5 +337,15 @@ export class UserService {
 
   private async hashPassword(password: string): Promise<string> {
     return await hash(password, 10);
+  }
+
+  private async getUsersWhoAreNotActivatedForDefaultNumberOfDays() {
+    return this.userRepository.getUsersWhoAreNotActivatedForDefaultNumberOfDays();
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  private async deleteNotActivatedUsers() {
+    const users = await this.getUsersWhoAreNotActivatedForDefaultNumberOfDays();
+    await Promise.all(users.map(async (user) => await user.remove()));
   }
 }
