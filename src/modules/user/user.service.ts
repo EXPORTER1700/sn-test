@@ -339,13 +339,13 @@ export class UserService {
     return await hash(password, 10);
   }
 
-  private async getUsersWhoAreNotActivatedForDefaultNumberOfDays() {
-    return this.userRepository.getUsersWhoAreNotActivatedForDefaultNumberOfDays();
+  private async getNonActivatedUsersByDays() {
+    return this.userRepository.getNonActivatedUsersByDays();
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  private async deleteNotActivatedUsers() {
-    const users = await this.getUsersWhoAreNotActivatedForDefaultNumberOfDays();
+  private async deleteNonActivatedUsers() {
+    const users = await this.getNonActivatedUsersByDays();
     await Promise.all(users.map(async (user) => await user.remove()));
   }
 }

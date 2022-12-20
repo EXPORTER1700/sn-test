@@ -44,7 +44,7 @@ export class UserRepository extends Repository<UserEntity> {
     return await super.findOne({ where: { email } });
   }
 
-  public async getUsersWhoAreNotActivatedForDefaultNumberOfDays() {
+  public async getNonActivatedUsersByDays() {
     const date = getDateAgo(
       new Date(),
       numberOfDaysAfterUserDeleteIfNotConfirmedConstant,
