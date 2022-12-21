@@ -3,7 +3,7 @@ import { UserEntity } from '@app/modules/user/user.entity';
 import { CreateUserDto } from '@app/modules/user/dto/create-user.dto';
 import { UserStatusEnum } from '@app/modules/user/types/user-status.enum';
 import { getDateAgo } from '@app/common/utils/get-date-ago.util';
-import { numberOfDaysAfterUserDeleteIfNotConfirmedConstant } from '@app/modules/user/types/number-of-days-after-user-delete-if-not-confirmed.constant';
+import { numberOfDaysToDeleteUnconfirmedUsersConstant } from '@app/modules/user/types/number-of-days-to-delete-unconfirmed-users.constant';
 
 @EntityRepository()
 export class UserRepository extends Repository<UserEntity> {
@@ -47,7 +47,7 @@ export class UserRepository extends Repository<UserEntity> {
   public async getNonActivatedUsersByDays() {
     const date = getDateAgo(
       new Date(),
-      numberOfDaysAfterUserDeleteIfNotConfirmedConstant,
+      numberOfDaysToDeleteUnconfirmedUsersConstant,
     );
 
     const queryBuilder = super

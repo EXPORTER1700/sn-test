@@ -52,4 +52,14 @@ export class PostRepository extends Repository<PostEntity> {
 
     return await queryBuilder.getMany();
   }
+
+  public async findByIdWithRelationIds(
+    postId: number,
+    relations: string[],
+  ): Promise<PostEntity | null> {
+    return await super.findOne({
+      where: { id: postId },
+      loadRelationIds: { relations },
+    });
+  }
 }

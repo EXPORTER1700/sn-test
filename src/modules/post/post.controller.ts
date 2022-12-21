@@ -149,4 +149,12 @@ export class PostController {
   ): Promise<SuccessResponseDto> {
     return this.postService.unlikePost(currentUserId, postId);
   }
+
+  @Delete(':id')
+  public deletePost(
+    @GetCurrentUserId() currentUserId: number,
+    @Param('id') postId: number,
+  ): Promise<SuccessResponseDto> {
+    return this.postService.deletePost(postId, currentUserId);
+  }
 }

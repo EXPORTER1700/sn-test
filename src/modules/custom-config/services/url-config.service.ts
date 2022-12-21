@@ -9,10 +9,6 @@ export class UrlConfigService {
     return this.configService.get<string>('FRONTEND_URL');
   }
 
-  public getFrontendLoginUrl(): string {
-    return this.getFrontendUrl() + '/login';
-  }
-
   public getFrontendConfirmEmailUrl(): string {
     return this.getFrontendUrl() + '/confirm-email';
   }

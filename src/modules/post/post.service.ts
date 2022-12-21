@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
@@ -123,10 +124,6 @@ export class PostService {
     currentUserId: number,
     query: BaseQueryDto,
   ): Promise<PostResponseDto[]> {
-    const currentUser = await this.userService.findByIdOrThrowError(
-      currentUserId,
-    );
-
     const subscriptionsIds =
       await this.subscriptionService.getSubscriptionsIdsByUserId(currentUserId);
 
@@ -146,6 +143,42 @@ export class PostService {
         return await this.buildPostResponseDto(post, content, post.user);
       }),
     );
+  }
+
+  public async deletePost(
+    postId: number,
+    currentUserId: number,
+  ): Promise<SuccessResponseDto> {
+    const post = await this.findByIdWithRelationIdsOrThrowError(postId, [
+      'user',
+    ]);
+
+    if ((post.user as any) !== currentUserId) {
+      throw new ForbiddenException('User is not author of post');
+    }
+
+    await post.remove();
+    return new SuccessResponseDto();
+  }
+
+  public async findByIdWithRelationIds(
+    postId: number,
+    relations: string[],
+  ): Promise<PostEntity | null> {
+    return await this.postRepository.findByIdWithRelationIds(postId, relations);
+  }
+
+  public async findByIdWithRelationIdsOrThrowError(
+    postId: number,
+    relations: string[],
+  ): Promise<PostEntity> {
+    const post = await this.findByIdWithRelationIds(postId, relations);
+
+    if (!post) {
+      throw new UnprocessableEntityException('Post does not exist');
+    }
+
+    return post;
   }
 
   public async findById(postId: number): Promise<PostEntity | null> {
